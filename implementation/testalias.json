@@ -1,0 +1,265 @@
+{
+    "tenantId": "tx",
+    "testAliasGroup": {
+        "testAliasGroupName": "checkpoint1-grade3-ela-2026",
+        "testAliases": [
+            {
+                "testAliasId": "checkpoint1-grade3-ela-2026-opp1",
+                "sequence": 1,
+                "sequenceLabel": "opp1",
+                "testFamily": "checkpoint1",
+                "subject": "ELA",
+                "grade": "grade3",
+                "schoolYear": 2026,
+                "testAliasName": "checkpoint1-grade3-ela-2026-opp1",
+                "embargoUntil": "2025-01-06T00:00:00Z",
+                "testKeys": [
+                    "checkpoint1-grade3-ela-2026-online-opp1",
+                    "checkpoint1-grade3-ela-2026-paper-opp1",
+                    "checkpoint1-grade3-ela-2026-braille-opp1"
+                ],
+                "measures": {
+                    "performanceLevel": {
+                        "show": true,
+                        "label": "Performance Level",
+                        "description": "Overall performance classification indicating the student's achievement level on this test.",
+                        "levels": [
+                            {
+                                "level": 1,
+                                "title": "Below Basic",
+                                "description": "The student demonstrates limited understanding of grade-level ELA concepts and requires significant support.",
+                                "minScore": 0,
+                                "maxScore": 1000
+                            },
+                            {
+                                "level": 2,
+                                "title": "Basic",
+                                "description": "The student demonstrates partial understanding of grade-level ELA concepts and requires some support.",
+                                "minScore": 1001,
+                                "maxScore": 2000
+                            },
+                            {
+                                "level": 3,
+                                "title": "Proficient",
+                                "description": "The student demonstrates solid understanding of grade-level ELA concepts and can work independently.",
+                                "minScore": 2001,
+                                "maxScore": 3000
+                            },
+                            {
+                                "level": 4,
+                                "title": "Advanced",
+                                "description": "The student demonstrates thorough understanding of grade-level ELA concepts and can apply skills in complex contexts.",
+                                "minScore": 3001,
+                                "maxScore": 4000
+                            }
+                        ]
+                    },
+                    "scaleScore": {
+                        "show": true,
+                        "label": "Scale Score",
+                        "description": "A scaled score representing overall student performance, comparable across test forms.",
+                        "minScore": 0,
+                        "maxScore": 4000
+                    },
+                    "rawScore": {
+                        "show": true,
+                        "label": "Raw Score",
+                        "description": "The total number of points earned out of the maximum possible on this test.",
+                        "minScore": 0,
+                        "maxScore": 40
+                    },
+                    "lexileScore": {
+                        "show": true,
+                        "label": "Lexile Score",
+                        "description": "A reading measure representing the student's reading ability on the Lexile scale.",
+                        "minScore": 0,
+                        "maxScore": 2000
+                    },
+                    "quantileScore": {
+                        "show": false,
+                        "label": "Quantile Score",
+                        "description": "A math measure representing the student's mathematical ability. Not applicable for ELA tests.",
+                        "minScore": null,
+                        "maxScore": null
+                    }
+                },
+                "subdomains": [
+                    {
+                        "id": "Key Ideas and Details",
+                        "sequence": 1,
+                        "description": "This subdomain focuses on the ability to ask and answer questions about a text, recount stories, and describe characters in a story."
+                    },
+                    {
+                        "id": "Craft and Structure",
+                        "sequence": 2,
+                        "description": "This subdomain focuses on the ability to describe characters in a story and explain how their actions contribute to the sequence of events."
+                    }
+                ],
+                "standards": [
+                    {
+                        "id": "CCSS.ELA-LITERACY.RL.3.1",
+                        "subdomain": "Key Ideas and Details",
+                        "sequence": 1,
+                        "description": "Ask and answer questions to demonstrate understanding of a text, referring explicitly to the text as the basis for the answers.",
+                        "performanceLevels": [
+                            {
+                                "level": 1,
+                                "title": "Below Basic",
+                                "description": "The student is able to ask and answer questions about a text with significant prompting and support, demonstrating a limited understanding of the text.",
+                                "minScore": 0,
+                                "maxScore": 1000
+                            },
+                            {
+                                "level": 2,
+                                "title": "Basic",
+                                "description": "The student is able to ask and answer questions about a text with some prompting and support, demonstrating a basic understanding of the text.",
+                                "minScore": 1001,
+                                "maxScore": 2000
+                            },
+                            {
+                                "level": 3,
+                                "title": "Proficient",
+                                "description": "The student is able to ask and answer questions about a text independently, demonstrating a proficient understanding of the text.",
+                                "minScore": 2001,
+                                "maxScore": 3000
+                            },
+                            {
+                                "level": 4,
+                                "title": "Advanced",
+                                "description": "The student is able to ask and answer questions about a text independently and provide detailed explanations, demonstrating an advanced understanding of the text.",
+                                "minScore": 3001,
+                                "maxScore": 4000
+                            }
+                        ]
+                    },
+                    {
+                        "id": "CCSS.ELA-LITERACY.RL.3.2",
+                        "subdomain": "Key Ideas and Details",
+                        "sequence": 2,
+                        "description": "Recount stories, including fables, folktales, and myths from diverse cultures; determine the central message, lesson, or moral and explain how it is conveyed through key details in the text.",
+                        "performanceLevels": [
+                            {
+                                "level": 1,
+                                "title": "Below Basic",
+                                "description": "The student is able to recount a story with significant prompting and support, demonstrating a limited understanding of the central message, lesson, or moral.",
+                                "minScore": 0,
+                                "maxScore": 1000
+                            },  
+                            {
+                                "level": 2,
+                                "title": "Basic",
+                                "description": "The student is able to recount a story with some prompting and support, demonstrating a basic understanding of the central message, lesson, or moral.",
+                                "minScore": 1001,
+                                "maxScore": 2000
+                            },
+                            {
+                                "level": 3,
+                                "title": "Proficient",
+                                "description": "The student is able to recount a story independently, demonstrating a proficient understanding of the central message, lesson, or moral.",
+                                "minScore": 2001,
+                                "maxScore": 3000
+                            },
+                            {
+                                "level": 4,
+                                "title": "Advanced",
+                                "description": "The student is able to recount a story independently and provide detailed explanations, demonstrating an advanced understanding of the central message, lesson, or moral.",
+                                "minScore": 3001,
+                                "maxScore": 4000
+                            }
+                        ]
+                    },
+                    {
+                        "id": "CCSS.ELA-LITERACY.RL.3.3",
+                        "subdomain": "Craft and Structure",
+                        "sequence": 3,
+                        "description": "Describe characters in a story (e.g., their traits, motivations, or feelings) and explain how their actions contribute to the sequence of events.",
+                        "performanceLevels": [
+                            {
+                                "level": 1,
+                                "title": "Below Basic",
+                                "description": "The student is able to describe characters in a story with significant prompting and support, demonstrating a limited understanding of their traits, motivations, or feelings.",
+                                "minScore": 0,
+                                "maxScore": 1000
+                            },
+                            {
+                                "level": 2,
+                                "title": "Basic",
+                                "description": "The student is able to describe characters in a story with some prompting and support, demonstrating a basic understanding of their traits, motivations, or feelings.",
+                                "minScore": 1001,
+                                "maxScore": 2000
+                            },
+                            {
+                                "level": 3,
+                                "title": "Proficient",
+                                "description": "The student is able to describe characters in a story independently, demonstrating a proficient understanding of their traits, motivations, or feelings.",
+                                "minScore": 2001,
+                                "maxScore": 3000
+                            },
+                            {
+                                "level": 4,
+                                "title": "Advanced",
+                                "description": "The student is able to describe characters in a story independently and provide detailed explanations, demonstrating an advanced understanding of their traits, motivations, or feelings.",
+                                "minScore": 3001,
+                                "maxScore": 4000
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "testAliasId": "checkpoint1-grade3-ela-2026-opp2",
+                "sequence": 2,
+                "sequenceLabel": "opp2",
+                "testFamily": "checkpoint1",
+                "subject": "ELA",
+                "grade": "grade3",
+                "schoolYear": 2026,
+                "testAliasName": "checkpoint1-grade3-ela-2026-opp2",
+                "embargoUntil": "2026-04-04T00:00:00Z",
+                "testKeys": [
+                    "checkpoint1-grade3-ela-2026-online-opp2",
+                    "checkpoint1-grade3-ela-2026-paper-opp2",
+                    "checkpoint1-grade3-ela-2026-braille-opp2"
+                ],
+                "measures": {
+                    "performanceLevel": {
+                        "show": true,
+                        "label": "Performance Level",
+                        "description": "Overall performance classification indicating the student's achievement level on this test.",
+                        "levels": []
+                    },
+                    "scaleScore": {
+                        "show": true,
+                        "label": "Scale Score",
+                        "description": "A scaled score representing overall student performance, comparable across test forms.",
+                        "minScore": 0,
+                        "maxScore": 4000
+                    },
+                    "rawScore": {
+                        "show": true,
+                        "label": "Raw Score",
+                        "description": "The total number of points earned out of the maximum possible on this test.",
+                        "minScore": 0,
+                        "maxScore": 40
+                    },
+                    "lexileScore": {
+                        "show": true,
+                        "label": "Lexile Score",
+                        "description": "A reading measure representing the student's reading ability on the Lexile scale.",
+                        "minScore": 0,
+                        "maxScore": 2000
+                    },
+                    "quantileScore": {
+                        "show": false,
+                        "label": "Quantile Score",
+                        "description": "A math measure representing the student's mathematical ability. Not applicable for ELA tests.",
+                        "minScore": null,
+                        "maxScore": null
+                    }
+                },
+                "subdomains": [],
+                "standards": []
+            }
+        ]
+    }
+}

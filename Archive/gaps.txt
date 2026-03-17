@@ -1,0 +1,3 @@
+* During ingestion if we don't have configs for a specific test, we have to reject the s3, may be move to a different s3 rejection bucket and some type of notification / logging
+* Embargo tests  ✅ RESOLVED — see §6.3 (trs.test_configs embargo_until, trs.users roles), §9.1 embargo pre-check, §9.5 EmbargoService + test discovery endpoint, §11.2 cache invalidation; implementation/API_Lambda.md all paths updated
+

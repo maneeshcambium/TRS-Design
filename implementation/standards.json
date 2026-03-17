@@ -1,0 +1,125 @@
+{
+    "testAliasId": "checkpoint1-grade3-ela-2026-opp1",
+    "subdomains": [
+        {
+            "id": "Key Ideas and Details",
+            "sequence": 1,
+            "description": "This subdomain focuses on the ability to ask and answer questions about a text, recount stories, and describe characters in a story."
+        },
+        {
+            "id": "Craft and Structure",
+            "sequence": 2,
+            "description": "This subdomain focuses on the ability to describe characters in a story and explain how their actions contribute to the sequence of events."
+        }
+    ],
+    "standards": [
+        {
+            "id": "CCSS.ELA-LITERACY.RL.3.1",
+            "subdomain": "Key Ideas and Details",
+            "sequence": 1,
+            "description": "Ask and answer questions to demonstrate understanding of a text, referring explicitly to the text as the basis for the answers.",
+            "performanceLevels": [
+                {
+                    "level": 1,
+                    "title": "Below Basic",
+                    "description": "The student is able to ask and answer questions about a text with significant prompting and support, demonstrating a limited understanding of the text.",
+                    "minScore": 0,
+                    "maxScore": 1000
+                },
+                {
+                    "level": 2,     
+                    "title": "Basic",               
+                    "description": "The student is able to ask and answer questions about a text with some prompting and support, demonstrating a basic understanding of the text.",
+                    "minScore": 1001,
+                    "maxScore": 2000
+                },
+                {
+                    "level": 3, 
+                    "title": "Proficient",
+                    "description": "The student is able to ask and answer questions about a text independently, demonstrating a proficient understanding of the text.",
+                    "minScore": 2001,
+                    "maxScore": 3000
+                },
+                {
+                    "level": 4,
+                    "title": "Advanced",
+                    "description": "The student is able to ask and answer questions about a text independently and provide detailed explanations, demonstrating an advanced understanding of the text.",
+                    "minScore": 3001,
+                    "maxScore": 4000
+                }
+            ]
+        },
+        {
+            "id": "CCSS.ELA-LITERACY.RL.3.2",
+            "subdomain": "Key Ideas and Details",
+            "sequence": 2,
+            "description": "Recount stories, including fables, folktales, and myths from diverse cultures; determine the central message, lesson, or moral and explain how it is conveyed through key details in the text.",
+            "performanceLevels":[
+                {
+                    "level": 1,
+                    "title": "Below Basic",
+                    "description": "The student is able to recount a story with significant prompting and support, demonstrating a limited understanding of the central message, lesson, or moral.",
+                    "minScore": 0,
+                    "maxScore": 1000
+                },
+                {
+                    "level": 2,
+                    "title": "Basic",
+                    "description": "The student is able to recount a story with some prompting and support, demonstrating a basic understanding of the central message, lesson, or moral.",
+                    "minScore": 1001,
+                    "maxScore": 2000    
+                },
+                {
+                    "level": 3,
+                    "title": "Proficient",
+                    "description": "The student is able to recount a story independently, demonstrating a proficient understanding of the central message, lesson, or moral.",
+                    "minScore": 2001,
+                    "maxScore": 3000
+                },
+                {
+                    "level": 4,
+                    "title": "Advanced",
+                    "description": "The student is able to recount a story independently and provide detailed explanations, demonstrating an advanced understanding of the central message, lesson, or moral.",
+                    "minScore": 3001,
+                    "maxScore": 4000
+                }
+            ]
+        },
+        {
+            "id": "CCSS.ELA-LITERACY.RL.3.3",
+            "subdomain": "Craft and Structure",
+            "sequence": 3,
+            "description": "Describe characters in a story (e.g., their traits, motivations, or feelings) and explain how their actions contribute to the sequence of events.",
+            "performanceLevels":[
+                {
+                    "level": 1,
+                    "title": "Below Basic",
+                    "description": "The student is able to describe characters in a story with significant prompting and support, demonstrating a limited understanding of their traits, motivations, or feelings.",
+                    "minScore": 0,
+                    "maxScore": 1000
+                },
+                {
+                    "level": 2,
+                    "title": "Basic",
+                    "description": "The student is able to describe characters in a story with some prompting and support, demonstrating a basic understanding of their traits, motivations, or feelings.",
+                    "minScore": 1001,
+                    "maxScore": 2000
+                },
+                {
+                    "level": 3,
+                    "title": "Proficient",
+                    "description": "The student is able to describe characters in a story independently, demonstrating a proficient understanding of their traits, motivations, or feelings.",
+                    "minScore": 2001,
+                    "maxScore": 3000
+                },
+                {
+                    "level": 4,
+                    "title": "Advanced",
+                    "description": "The student is able to describe characters in a story independently and provide detailed explanations, demonstrating an advanced understanding of their traits, motivations, or feelings.",
+                    "minScore": 3001,
+                    "maxScore": 4000
+                }
+            ]
+        }
+    ]
+}

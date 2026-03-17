@@ -1,0 +1,21 @@
+Examples of Tests (testKeys)
+-----------------
+checkpoint1-grade3-ela-2026-online-opp1
+checkpoint1-grade3-ela-2026-paper-opp1
+checkpoint1-grade3-ela-2026-braille-opp1
+checkpoint1-grade3-ela-2026-online-opp2
+checkpoint1-grade3-ela-2026-paper-opp2
+checkpoint1-grade3-ela-2026-braille-opp2
+
+TestAlias
+------------------
+testAliasId, testKeysJsonArray, testFamily, subject, grade, schoolYear, testAliasName, isReleased, releaseDate
+checkpoint1-grade3-ela-2026-opp1, {["checkpoint1-grade3-ela-2026-online-opp1"\, "checkpoint1-grade3-ela-2026-paper-opp1"\, "checkpoint1-grade3-ela-2026-braille-opp1"]}, checkpoint1, ELA, grade3, 2026,checkpoint1-grade3-ela-2026-opp1 ({TestFamily}-{Subject}-{Grade}-{SchoolYear}), true, 1/6/2025
+checkpoint1-grade3-ela-2026-opp2, {["checkpoint1-grade3-ela-2026-online-opp2"\, "checkpoint1-grade3-ela-2026-paper-opp2"\, "checkpoint1-grade3-ela-2026-braille-opp2"]}, checkpoint1, ELA, grade3, 2026,checkpoint1-grade3-ela-2026-opp2 ({TestFamily}-{Subject}-{Grade}-{SchoolYear}), false, 4/4/2026
+
+	
+TestAliasGroups:
+------------------------------
+testAliasGroupName,testAliasId, sequence, sequenceLabel
+checkpoint1-grade3-ela-2026, 1, opp1
+checkpoint1-grade3-ela-2026, 2, opp2

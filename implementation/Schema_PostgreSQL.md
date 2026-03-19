@@ -241,99 +241,12 @@ CREATE INDEX idx_test_alias_groups_alias
 
 ---
 
-### `trs.test_alias_standards`
-
-One row per standard aligned to a `testalias_id`. The `standard_id` matches the
-`component_id` stored in `trs.student_component_scores` when `component_type = 'STANDARD'`.
-
-```sql
-CREATE TABLE trs.test_alias_standards (
-    tenant_id       TEXT    NOT NULL,
-    testalias_id    TEXT    NOT NULL,   -- FK → test_aliases
-    standard_id     TEXT    NOT NULL,   -- e.g. CCSS.ELA-LITERACY.RL.3.1
-    description     TEXT    NOT NULL,
-
-    PRIMARY KEY (tenant_id, testalias_id, standard_id),
-    FOREIGN KEY (tenant_id, testalias_id)
-        REFERENCES trs.test_aliases (tenant_id, testalias_id)
-);
-```
+> **Removed tables:** `trs.test_alias_standards`, `trs.standard_performance_levels`,
+> `trs.test_alias_measures`, and `trs.test_alias_perf_levels` have been replaced by
+> **S3 test-alias config files** (`s3://trs-config/{tenant_id}/{testalias_id}.json`).
+> See §6.4 in the main design document for the JSON schema and caching strategy.
 
 ---
-
-### `trs.standard_performance_levels`
-
-One row per performance level per standard. Descriptions are standard-specific even when
-level titles (Below Basic / Basic / Proficient / Advanced) repeat across standards.
-
-```sql
-CREATE TABLE trs.standard_performance_levels (
-    tenant_id       TEXT        NOT NULL,
-    testalias_id    TEXT        NOT NULL,
-    standard_id     TEXT        NOT NULL,
-    level           SMALLINT    NOT NULL,   -- 1, 2, 3, 4  (matches component_perf_level in scores)
-    title           TEXT        NOT NULL,   -- e.g. Below Basic, Basic, Proficient, Advanced
-    description     TEXT        NOT NULL,
-    min_score       REAL        NOT NULL,   -- inclusive lower bound; REAL to match overall_scale_score
-    max_score       REAL        NOT NULL,   -- inclusive upper bound of the scale-score range for this level
-
-    PRIMARY KEY (tenant_id, testalias_id, standard_id, level),
-    FOREIGN KEY (tenant_id, testalias_id, standard_id)
-        REFERENCES trs.test_alias_standards (tenant_id, testalias_id, standard_id)
-);
-```
-
----
-
-### `trs.test_alias_measures`
-
-One row per measure type per alias. Controls which score measures are displayed in reports
-and provides labels and descriptions shown to users.
-
-`min_score` / `max_score` are NULL for `performanceLevel` — its score ranges are defined
-per-level in `trs.test_alias_perf_levels`.
-
-```sql
-CREATE TABLE trs.test_alias_measures (
-    tenant_id       TEXT        NOT NULL,
-    testalias_id    TEXT        NOT NULL,   -- FK → test_aliases
-    measure_type    TEXT        NOT NULL,   -- scaleScore | rawScore | lexileScore | quantileScore
-                                            -- | percentCorrect | percentile | performanceLevel
-    show            BOOLEAN     NOT NULL DEFAULT TRUE,
-    label           TEXT        NOT NULL,
-    description     TEXT        NOT NULL,
-    min_score       REAL        NULL,       -- NULL for performanceLevel; REAL to match overall_scale_score
-    max_score       REAL        NULL,       -- NULL for performanceLevel
-
-    PRIMARY KEY (tenant_id, testalias_id, measure_type),
-    FOREIGN KEY (tenant_id, testalias_id)
-        REFERENCES trs.test_aliases (tenant_id, testalias_id)
-);
-```
-
----
-
-### `trs.test_alias_perf_levels`
-
-Overall test-level performance levels. Parallel to `trs.standard_performance_levels` but
-keyed to the alias only — these describe the test's overall score bands, not per-standard.
-`level` matches `overall_perf_level` in `trs.student_opportunities`.
-
-```sql
-CREATE TABLE trs.test_alias_perf_levels (
-    tenant_id       TEXT        NOT NULL,
-    testalias_id    TEXT        NOT NULL,   -- FK → test_aliases
-    level           SMALLINT    NOT NULL,   -- 1, 2, 3, 4  (matches overall_perf_level in student_opportunities)
-    title           TEXT        NOT NULL,   -- e.g. Below Basic, Basic, Proficient, Advanced
-    description     TEXT        NOT NULL,
-    min_score       REAL        NOT NULL,   -- inclusive lower bound; REAL to match overall_scale_score
-    max_score       REAL        NOT NULL,   -- inclusive upper bound
-
-    PRIMARY KEY (tenant_id, testalias_id, level),
-    FOREIGN KEY (tenant_id, testalias_id)
-        REFERENCES trs.test_aliases (tenant_id, testalias_id)
-);
-```
 
 ### `trs.embargo_roles`
 

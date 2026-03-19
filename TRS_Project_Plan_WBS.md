@@ -442,7 +442,7 @@ trs-platform/                       ← Git monorepo root
 | P2.2 | Postgres DDL: `trs` schema + `student_opportunities` partitioned table (LIST tenant_id → LIST school_year) + all indexes (`idx_so_roster`, `idx_so_student`) | 1.5 | Dev 2 | P2.1 |
 | P2.3 | Postgres DDL: `student_component_scores` partitioned table + indexes; `REPLICA IDENTITY FULL` on both score tables | 1 | Dev 2 | P2.1 |
 | P2.4 | Postgres DDL: membership tables (`roster_student`, `school_student`, `district_student`, `district_school`, `teacher_roster`) with tenant_id partitioning | 1 | Dev 2 | P2.1 |
-| P2.5 | Postgres DDL: config tables (`test_aliases`, `test_keys`, `test_alias_groups`, `test_alias_standards`, `standard_performance_levels`, `test_alias_measures`, `test_alias_perf_levels`, `tenants`) + indexes | 1.5 | Dev 2 | P2.1 |
+| P2.5 | Postgres DDL: config tables (`test_aliases`, `test_keys`, `test_alias_groups`, `tenants`) + indexes | 1 | Dev 2 | P2.1 |
 | P2.6 | Postgres DDL: operational tables (`embargo_roles`, `score_ingest_log`, `score_ingest_rejections`, `report_cache`) + expiry index + cleanup pg_cron jobs | 1 | Dev 2 | P2.1 |
 | P2.7 | Postgres DDL: materialized views (`mv_school_overall`, `mv_district_overall`, `mv_school_standards_current`) + unique indexes | 1 | Dev 2 | P2.2, P2.4 |
 | P2.8 | Postgres: pg_cron extension enable + cron jobs (report_cache cleanup, score_ingest_log cleanup, MV refresh schedule aligned with EventBridge rules) | 0.5 | Dev 2 | P2.6, P2.7 |
@@ -532,7 +532,7 @@ trs-platform/                       ← Git monorepo root
 | P6.1 | .NET shared library `TRS.Caching`: `IValkeyCacheService` implementation using `StackExchange.Redis`; connection string from Secrets Manager | 1 | Dev 2 | P1.10 |
 | P6.2 | Cache key conventions document + implementation: `{scope}:{tenantId}:{scopeId}:{schoolYear}:{testAliasId}`, `testconfig:{tenantId}:{testAliasId}`, `embargo:{tenantId}:{testAliasId}` | 0.5 | Dev 2 + Architect | P6.1 |
 | P6.3 | Integrate Valkey into `EmbargoService`: replace in-process Dictionary with Valkey (60s TTL for embargo_until, 5min TTL for embargo_roles) | 1 | Dev 1 | P6.1, P6.2 |
-| P6.4 | Integrate Valkey into test config lookups (`test_aliases`, `test_alias_measures`, `test_alias_perf_levels`) — 10min TTL; Admin API invalidates on config change | 1 | Dev 2 | P6.1, P6.2 |
+| P6.4 | Integrate Valkey into test config lookups (`test_aliases`) and S3 config cache — 10min TTL; Admin API invalidates on config change | 1 | Dev 2 | P6.1, P6.2 |
 | P6.5 | Wire Valkey as Tier 0 in the fallback chain (Valkey → `report_cache` → ClickHouse Gold → Postgres MV → Postgres live) | 1.5 | Dev 1 | P6.1, P6.2 — wired during P7 API work |
 | P6.6 | Cache invalidation: Admin API emits SNS rescore notification → Lambda/Fargate listener evicts targeted Valkey keys by pattern | 1 | Dev 2 | P6.5, P1.16 |
 | P6.7 | Unit tests: cache hit/miss path, TTL expiry simulation, key eviction, connection failure graceful degradation (miss → proceed to next tier) | 1.5 | Dev 2 | P6.3–P6.6 |
@@ -578,13 +578,13 @@ trs-platform/                       ← Git monorepo root
 | P8.1 | .NET 8 Admin API project scaffold — Dockerfile, `GET /health`, shared JWT middleware (NuGet from shared library) | 1 | Dev 2 | P1.13, P7.2 |
 | P8.2 | Tenant management: `GET/POST /v1/admin/tenants` | 0.5 | Dev 2 | P8.1, P2.5 |
 | P8.3 | Test alias CRUD: `GET/POST/PUT /v1/admin/{tenantId}/test-aliases` + `test_keys`, `test_alias_groups` | 2.5 | Dev 2 | P8.1, P2.5 |
-| P8.4 | Test measures config: `GET/POST/PUT /v1/admin/{tenantId}/test-aliases/{id}/measures` (`test_alias_measures`, `test_alias_perf_levels`) | 1.5 | Dev 2 | P8.3 |
-| P8.5 | Standards config: `GET/POST/PUT /v1/admin/{tenantId}/test-aliases/{id}/standards` (`test_alias_standards`, `standard_performance_levels`) | 1.5 | Dev 2 | P8.3 |
+| P8.4 | Test-alias config upload: `PUT /v1/admin/{tenantId}/test-aliases/{id}/config` — validates JSON schema, uploads to `s3://trs-config/{tenantId}/{testAliasId}.json` (performance levels, measures, score bands, standards) | 1.5 | Dev 2 | P8.3 |
+| P8.5 | Test-alias config download: `GET /v1/admin/{tenantId}/test-aliases/{id}/config` — reads from S3 config bucket | 0.5 | Dev 2 | P8.3 |
 | P8.6 | Embargo management: `PUT /v1/admin/{tenantId}/test-aliases/{id}/embargo` (set/clear `embargo_until`); `PUT .../embargo-roles` (manage `embargo_roles` table) | 1.5 | Dev 2 | P8.3, P2.6 |
 | P8.7 | Embargo change → Valkey cache invalidation: on embargo update, publish SNS event → Valkey evicts `embargo:*` keys | 1 | Dev 2 | P8.6, P6.6 |
 | P8.8 | FlightPlan integration: `IFlightPlanClient` — `GET /tests?client={X}&schoolYear={Y}`; Admin endpoint to import and create test aliases | 2 | Dev 2 | P8.3 — FlightPlan contract |
 | P8.9 | CSR integration: `ICsrClient` — browse publications, fetch standards for a publication; Admin endpoint to associate standards to test alias | 2 | Dev 2 | P8.5 — CSR contract |
-| P8.10 | ITS integration: `IItsClient` — fetch PLD measures + cut scores for a test; persist to `test_alias_perf_levels` | 2 | Dev 2 | P8.4 — ITS contract |
+| P8.10 | ITS integration: `IItsClient` — fetch PLD measures + cut scores for a test; generate test-alias config JSON and upload to S3 config bucket | 2 | Dev 2 | P8.4 — ITS contract |
 | P8.11 | Score rejection management: `GET /v1/admin/{tenantId}/rejections` + `POST .../replay` (re-queue to `score-ingest` SQS) | 1 | Dev 2 | P8.1, P3.7 |
 | P8.12 | Unit tests: all CRUD endpoints, embargo logic, cache invalidation, FlightPlan/CSR/ITS client stubs | 2.5 | Dev 2 | P8.3–P8.11 |
 | P8.13 | CDK: Fargate service definition for Admin API (0.5 vCPU / 1GB, 1 task); ALB target group | 0.5 | Architect + Dev 2 | P8.1, P1.14 |

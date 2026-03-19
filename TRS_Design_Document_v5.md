@@ -1,8 +1,8 @@
 # Teacher Reporting System (TRS) — Engineering Design Document
 
 **Author:** Principal Software Engineer
-**Date:** 2026-03-17
-**Version:** v6
+**Date:** 2026-03-18
+**Version:** v7
 **Audience:** Engineering team;
 
 > **Document purpose:** This is the authoritative design document for the TRS analytical
@@ -31,8 +31,9 @@
 12. [Cost Analysis](#12-cost-analysis)
 13. [Key Engineering Decisions](#13-key-engineering-decisions)
 14. [Operational Prerequisites](#14-operational-prerequisites)
-15. [MVP Scope & Future Enhancements](#15-mvp-scope--future-enhancements)
-16. [Tech Stack Reference](#16-tech-stack-reference)
+15. [Observability — OpenTelemetry](#15-observability--opentelemetry)
+16. [MVP Scope & Future Enhancements](#16-mvp-scope--future-enhancements)
+17. [Tech Stack Reference](#17-tech-stack-reference)
 
 ---
 
@@ -92,9 +93,11 @@ aggregations over large student populations (up to 5.5 million students for Texa
 
 ### 2.1 High-Level Diagram
 
+> **Editable diagram:** [TRS_Architecture_Diagram_v2.drawio](TRS_Architecture_Diagram_v2.drawio) — open in draw.io (diagrams.net) for the graphical version of this architecture.
+
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                  TRS — Architecture v6                                        │
+│                                  TRS — Architecture v7                                        │
 │                                                                                              │
 │  ┌─────────────┐  ┌──────┐  ┌──────────────────┐  ┌──────────────────────────────────────┐  │
 │  │  Scoring    │─▶│  S3  │─▶│  SQS Score Queue │─▶│  Lambda: Score Processor             │  │
@@ -102,21 +105,22 @@ aggregations over large student populations (up to 5.5 million students for Texa
 │  └─────────────┘  └──────┘  └──────────────────┘  └──────────────┬───────────────────────┘  │
 │                                                                    │ UPSERT (primary write)   │
 │  ┌─────────────┐  ┌──────────────────────┐                        │                          │
-│  │  RTS        │─▶│  Lambda: RTS         │    ┌───────────────────▼───────────────────────┐  │
-│  │  (external) │  │  Membership Sync     │───▶│                                           │  │
-│  └─────────────┘  └──────────────────────┘    │  Aurora PostgreSQL Serverless v2          │  │
-│                                               │  ─────────────────────────────────────── │  │
-│                                               │  PRIMARY STORE — Source of Truth          │  │
-│                                               │  • student_opportunities (scores)         │  │
-│                                               │  • student_component_scores               │  │
-│                                               │  • roster_student / school_student        │  │
-│                                               │  • district_student / district_school     │  │
-│                                               │  • teacher_roster / students              │  │
-│                                               │  • tenants / test_aliases / test_keys     │  │
-│                                               │  • test_alias_groups / embargo_roles     │  │
-│                                               │  • report_cache (pre-computed aggregates) │  │
-│                                               │  • mv_school_overall / mv_district_overall│  │
-│                                               │  • score_ingest_log (idempotency)         │  │
+│  │  RTS MSSQL  │─▶│  Lambda: RTS         │    ┌───────────────────▼───────────────────────┐  │
+│  │  (per-tenant│  │  Membership Sync     │───▶│                                           │  │
+│  │  TX/VA/IL)  │  │  (same code, per-    │    │  Aurora PostgreSQL Serverless v2          │  │
+│  └─────────────┘  │   tenant conn str)   │    │  ─────────────────────────────────────── │  │
+│                   └──────────────────────┘    │  PRIMARY STORE — Source of Truth          │  │
+│  ┌─────────────────────────────┐              │  Three schemas in one database:           │  │
+│  │  S3 Config Bucket           │              │                                           │  │
+│  │  s3://trs-config/           │              │  [configs] tenants, test_aliases,          │  │
+│  │  {tenant}/{testalias}.json  │              │           test_keys, test_alias_groups,    │  │
+│  │  (standards, perf levels,   │              │           embargo_roles                    │  │
+│  │   measures, score bands)    │              │  [scores]  student_opportunities,          │  │
+│  └──────────────┬──────────────┘              │           student_component_scores,        │  │
+│                 │ read by API Lambda           │           report_cache, MVs               │  │
+│                 │ (cached in-process, 5m TTL)  │  [rts]    school_student, district_student│  │
+│                 │                              │           roster_student, district_school, │  │
+│                 ▼                              │           teacher_roster                   │  │
 │                                               └──────────┬────────────────────────────────┘  │
 │                                                          │                                    │
 │                                                    WAL (logical replication slot)             │
@@ -163,6 +167,7 @@ aggregations over large student populations (up to 5.5 million students for Texa
 │  └─────────────┘  │  (RH SSO JWT)      │  │  [1] Postgres report_cache          (<5ms)       │ │
 │                   └────────────────────┘  │  [2] ClickHouse Silver + JOIN    (<250ms school; <2s district)  │ │
 │                                           │  [3] Postgres MV / live query       (fallback)   │ │
+│                                           │  Reads test-alias config from S3 (cached, 5m)    │ │
 │                                           └────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -176,14 +181,16 @@ aggregations over large student populations (up to 5.5 million students for Texa
 | SQS Score Queue | AWS SQS (+ DLQ) | Decouples Scoring System from Score Processor; buffers bursts |
 | Lambda: Score Processor | AWS Lambda (.NET 8 / C#) | Downloads S3 files; validates; UPSERTs to Aurora only; **no ClickHouse write** |
 | RTS | External | Authoritative source of roster / school / district membership |
-| Lambda: RTS Membership Sync | AWS Lambda (.NET 8 / C#) | Syncs RTS data into Aurora; best-effort mirror to ClickHouse membership tables |
-| Aurora PostgreSQL Serverless v2 | AWS Aurora | **Primary store for ALL data**: scores, components, membership, config, report cache, idempotency log |
-| PeerDB Engine | Fargate (0.25 vCPU / 0.5 GB) | Reads Aurora WAL via logical replication slot. **Two CDC jobs:** (1) score tables — delivers Before/After images to Sign-Pair Transformer; (2) membership tables (`school_student`, `district_student`) — replicates directly to ClickHouse `membership_school_mirror` / `membership_district_mirror` bypassing the Transformer |
+| Lambda: RTS Membership Sync | AWS Lambda (.NET 8 / C#) | Syncs RTS data into Aurora `rts` schema; each tenant's external MSSQL RTS database has the same schema — only the connection string changes per `tenant_id`; best-effort mirror to ClickHouse membership tables |
+| S3 Config Bucket | AWS S3 | Stores per-test-alias JSON config files (standards, performance levels, measures, score bands); read by API Lambda with in-process caching |
+| Aurora PostgreSQL Serverless v2 | AWS Aurora | **Primary store for ALL data** organized into three schemas: `configs` (test config, embargo), `scores` (student opportunities, components, report cache, MVs), `rts` (membership mirrors). Source of truth for scores, membership, and idempotency |
+| PeerDB Engine | Fargate (0.25 vCPU / 0.5 GB) | Reads Aurora WAL via logical replication slot. **Two CDC jobs:** (1) score tables (`scores.student_opportunities`, `scores.student_component_scores`) — delivers Before/After images to Sign-Pair Transformer; (2) membership tables (`rts.school_student`, `rts.district_student`) — replicates directly to ClickHouse `membership_school_mirror` / `membership_district_mirror` bypassing the Transformer |
 | C# Sign-Pair Transformer | Fargate (0.5 vCPU / 1 GB) | Converts CDC events to `-1/+1` Bronze row pairs; batch-inserts to ClickHouse Bronze via HTTP |
 | ClickHouse Single Node | EC2 `r6i.2xlarge` (aggregation-only) | Medallion Bronze/Silver layers; serves school/district aggregate queries via Silver + membership JOIN at query time; rebuilt from Postgres on total loss |
 | Lambda: Aggregate Refresh | AWS Lambda (.NET 8 / C#) | Scheduled; queries ClickHouse Silver + membership mirror JOIN; writes results to Postgres `report_cache`; falls back to Postgres MV refresh if ClickHouse unavailable |
-| Lambda: API | AWS Lambda (.NET 8 / C#) | REST API; three-tier fallback: `report_cache` → ClickHouse Silver + membership JOIN → Postgres MV/live |
-| Auth | Red Hat SSO (OIDC) | External IdP — sole source of user identity and roles. Issues signed JWTs (`id_token`, RS256) with `tenant_id` and `roles` (string array) claims. Lambda authorizer validates signature against JWKS endpoint. TRS has no local users table. Embargo access is determined by matching JWT role names against `trs.embargo_roles` per tenant |
+| Lambda: API | AWS Lambda (.NET 8 / C#) | REST API; three-tier fallback: `report_cache` → ClickHouse Silver + membership JOIN → Postgres MV/live; loads test-alias display config from S3 (`trs-config` bucket) with 5-min in-process cache |
+| Auth | Red Hat SSO (OIDC) | External IdP — sole source of user identity and roles. Issues signed JWTs (`id_token`, RS256) with `tenant_id` and `roles` (string array) claims. Lambda authorizer validates signature against JWKS endpoint. TRS has no local users table. Embargo access is determined by matching JWT role names against `configs.embargo_roles` per tenant |
+| Observability | AWS Distro for OpenTelemetry (ADOT) | Distributed tracing, structured logging, and metrics collection across all Lambdas and Fargate services; exports to CloudWatch via OTLP |
 
 ---
 
@@ -283,7 +290,7 @@ PeerDB delivers structured CDC events via SQS (or a direct HTTP endpoint), each 
 ```json
 {
   "EventType": "UPDATE",
-  "TableName": "trs.student_opportunities",
+  "TableName": "scores.student_opportunities",
   "Timestamp": "2026-03-03T14:22:05.123Z",
   "Lsn": "0/1F4A2B8",
   "BeforeImage": {
@@ -493,9 +500,23 @@ TRS uses only **current** relationships (no effective-dated history). Membership
 
 ## 6. Database Schema — Aurora PostgreSQL
 
-Aurora is the **primary and authoritative store** for all TRS data.
+Aurora is the **primary and authoritative store** for all TRS data. Tables are organized into
+three Postgres **schemas** within a single Aurora database, providing logical separation by
+concern while preserving zero-cost cross-schema JOINs for materialized views and fallback queries.
 
-### 6.1 `trs.student_opportunities` — Score Table
+| Schema | Purpose | Tables | Written By |
+|--------|---------|--------|------------|
+| `configs` | Test configuration & embargo metadata | `tenants`, `test_aliases`, `test_keys`, `test_alias_groups`, `embargo_roles` | Admin / deployment tooling |
+| `scores` | Score data, ingestion log, report cache, materialized views | `student_opportunities`, `student_component_scores`, `score_ingest_log`, `score_ingest_rejections`, `report_cache`, `mv_school_overall`, `mv_district_overall`, `mv_school_standards_current` | Score Processor Lambda, Aggregate Refresh Lambda |
+| `rts` | Membership mirrors from external RTS | `school_student`, `district_student`, `roster_student`, `district_school`, `teacher_roster` | RTS Membership Sync Lambda |
+
+**Why three schemas, not three databases?** Postgres does not support cross-database JOINs.
+Separate databases would break all materialized views (which JOIN `scores.*` against `rts.*`),
+the Score Processor's `configs.test_keys` lookup, and the API's embargo check against
+`configs.test_aliases` + `configs.embargo_roles`. Schemas give the same logical boundary
+(independent `GRANT`, `pg_dump --schema`, code navigation) with zero performance cost.
+
+### 6.1 `scores.student_opportunities` — Score Table
 
 Two-level composite partitioning: Level 1 = `LIST(tenant_id)`, Level 2 = `LIST(school_year)`.
 
@@ -504,7 +525,7 @@ Two-level composite partitioning: Level 1 = `LIST(tenant_id)`, Level 2 = `LIST(s
 -- Postgres routes transparently to the correct leaf partition at plan time.
 -- Never reference partition names (e.g. student_opportunities_tx_2026) in application code.
 
-CREATE TABLE trs.student_opportunities (
+CREATE TABLE scores.student_opportunities (
     tenant_id              TEXT         NOT NULL,   -- L1 partition key
     school_year            SMALLINT     NOT NULL,   -- L2 partition key
     opp_key                UUID         NOT NULL,
@@ -542,13 +563,13 @@ CREATE TABLE trs.student_opportunities (
 PARTITION BY LIST (tenant_id);
 
 -- Per-tenant partition (example: Texas)
-CREATE TABLE trs.student_opportunities_tx
-    PARTITION OF trs.student_opportunities
+CREATE TABLE scores.student_opportunities_tx
+    PARTITION OF scores.student_opportunities
     FOR VALUES IN ('tx')
     PARTITION BY LIST (school_year);
 
-CREATE TABLE trs.student_opportunities_tx_2026
-    PARTITION OF trs.student_opportunities_tx
+CREATE TABLE scores.student_opportunities_tx_2026
+    PARTITION OF scores.student_opportunities_tx
     FOR VALUES IN (2026);
 ```
 
@@ -556,26 +577,26 @@ CREATE TABLE trs.student_opportunities_tx_2026
 ```sql
 -- Primary query pattern: tenant + year + test + student_id list (roster queries)
 CREATE INDEX idx_so_roster
-    ON trs.student_opportunities (tenant_id, school_year, testalias_id, student_id)
+    ON scores.student_opportunities (tenant_id, school_year, testalias_id, student_id)
     WHERE is_aggregate_eligible = TRUE;
 
 -- Aggregate-eligible + selected opp (used by Silver query HAVING and Lambda batch)
 CREATE INDEX idx_so_aggregation
-    ON trs.student_opportunities (tenant_id, school_year, testalias_id, student_id)
+    ON scores.student_opportunities (tenant_id, school_year, testalias_id, student_id)
     WHERE is_aggregate_eligible = TRUE AND use_for_aggregation = TRUE;
 
 -- Full per-student score list (includes ineligible)
 CREATE INDEX idx_so_student
-    ON trs.student_opportunities (tenant_id, school_year, testalias_id, student_id);
+    ON scores.student_opportunities (tenant_id, school_year, testalias_id, student_id);
 ```
 
 
 **PeerDB configuration note:** Set `REPLICA IDENTITY FULL` on this table (see §16) to ensure Before images contain all columns, not just the PK.
 
-### 6.2 `trs.student_component_scores`
+### 6.2 `scores.student_component_scores`
 
 ```sql
-CREATE TABLE trs.student_component_scores (
+CREATE TABLE scores.student_component_scores (
     tenant_id             TEXT         NOT NULL,
     school_year           SMALLINT     NOT NULL,
     opp_key               UUID         NOT NULL,
@@ -596,38 +617,41 @@ CREATE TABLE trs.student_component_scores (
 PARTITION BY LIST (tenant_id);
 
 CREATE INDEX idx_scs_query
-    ON trs.student_component_scores
+    ON scores.student_component_scores
        (tenant_id, school_year, testalias_id, student_id, component_type)
     WHERE is_aggregate_eligible = TRUE;
 ```
 
-### 6.3 Membership & Config Tables
+### 6.3 Config & Membership Tables
+
+**`configs` schema — test configuration & embargo metadata:**
 
 | Table | Purpose |
 |-------|---------|
-| `tenants` | Tenant / state client registry |
-| `test_aliases` | One row per alias — test family, subject, grade, school year, embargo |
-| `test_keys` | One row per delivery-variant key → maps to parent `testalias_id` |
-| `test_alias_groups` | Sequences aliases within a multi-opportunity group (opp1=1, opp2=2) |
-| `test_alias_standards` | Standards aligned to a test alias; `standard_id` matches `component_id` in component scores |
-| `standard_performance_levels` | Per-level title and description for each standard (levels 1–4) |
-| `test_alias_measures` | Which score measures to display per alias (scaleScore, rawScore, lexileScore, quantileScore, performanceLevel) with labels and descriptions |
-| `test_alias_perf_levels` | Overall test-level performance level bands with score ranges; `level` matches `overall_perf_level` in student scores |
-| `embargo_roles` | Per-tenant roles that grant embargo visibility (matched against JWT claims) |
-| `roster_student` | RTS mirror — current roster ↔ student membership |
-| `school_student` | RTS mirror — current school ↔ student membership |
-| `district_student` | RTS mirror — current district ↔ student membership |
-| `district_school` | RTS mirror — district ↔ school relationships |
-| `teacher_roster` | RTS mirror — teacher ↔ roster assignments |
+| `configs.tenants` | Tenant / state client registry |
+| `configs.test_aliases` | One row per alias — test family, subject, grade, school year, embargo |
+| `configs.test_keys` | One row per delivery-variant key → maps to parent `testalias_id` |
+| `configs.test_alias_groups` | Sequences aliases within a multi-opportunity group (opp1=1, opp2=2) |
+| `configs.embargo_roles` | Per-tenant roles that grant embargo visibility (matched against JWT claims) |
 
-> **Note:** There are no standalone entity tables for `tenants`, `schools`, `districts`, `teachers`, or `rosters`. `tenant_id` is a plain string column validated via the SSO JWT. Roster/school/district/teacher entities are tracked only through their RTS membership mirrors above. Standards and their performance levels are stored in `trs.test_alias_standards` and `trs.standard_performance_levels`. `student_attributes` is a ClickHouse table (see §7).
+**`rts` schema — membership mirrors from external RTS (multi-tenant MSSQL sources):**
 
-#### `trs.test_aliases`
+| Table | Purpose |
+|-------|---------|
+| `rts.roster_student` | RTS mirror — current roster ↔ student membership |
+| `rts.school_student` | RTS mirror — current school ↔ student membership |
+| `rts.district_student` | RTS mirror — current district ↔ student membership |
+| `rts.district_school` | RTS mirror — district ↔ school relationships |
+| `rts.teacher_roster` | RTS mirror — teacher ↔ roster assignments |
+
+> **Note:** There are no standalone entity tables for `tenants`, `schools`, `districts`, `teachers`, or `rosters`. `tenant_id` is a plain string column validated via the SSO JWT. Roster/school/district/teacher entities are tracked only through their RTS membership mirrors above. Standards, performance levels, measures, and score-band definitions are stored in **S3 test-alias config files** (see §6.4). `student_attributes` is a ClickHouse table (see §7).
+
+#### `configs.test_aliases`
 
 One row per `testalias_id`. Holds all config-level attributes shared across delivery variants.
 
 ```sql
-CREATE TABLE trs.test_aliases (
+CREATE TABLE configs.test_aliases (
     tenant_id           TEXT        NOT NULL,
     testalias_id        TEXT        NOT NULL,   -- e.g. checkpoint1-grade3-ela-2026-opp1
 
@@ -659,21 +683,21 @@ CREATE TABLE trs.test_aliases (
 
 -- Efficient lookup for the API embargo pre-check
 CREATE INDEX idx_test_aliases_embargo_lookup
-    ON trs.test_aliases (tenant_id, testalias_id)
+    ON configs.test_aliases (tenant_id, testalias_id)
     WHERE embargo_until IS NOT NULL;
 
 -- Efficient scan to find all currently embargoed tests (used by ops tooling)
 CREATE INDEX idx_test_aliases_embargo
-    ON trs.test_aliases (tenant_id, embargo_until)
+    ON configs.test_aliases (tenant_id, embargo_until)
     WHERE embargo_until IS NOT NULL;
 ```
 
-#### `trs.test_keys`
+#### `configs.test_keys`
 
 One row per delivery-variant `test_key` (online, paper, braille, etc.). Points to its parent alias.
 
 ```sql
-CREATE TABLE trs.test_keys (
+CREATE TABLE configs.test_keys (
     tenant_id       TEXT        NOT NULL,
     test_key        TEXT        NOT NULL,   -- e.g. checkpoint1-grade3-ela-2026-online-opp1
     testalias_id    TEXT        NOT NULL,   -- FK → test_aliases
@@ -682,19 +706,19 @@ CREATE TABLE trs.test_keys (
 
     PRIMARY KEY (tenant_id, test_key),
     FOREIGN KEY (tenant_id, testalias_id)
-        REFERENCES trs.test_aliases (tenant_id, testalias_id)
+        REFERENCES configs.test_aliases (tenant_id, testalias_id)
 );
 
 CREATE INDEX idx_test_keys_alias
-    ON trs.test_keys (tenant_id, testalias_id);
+    ON configs.test_keys (tenant_id, testalias_id);
 ```
 
-#### `trs.test_alias_groups`
+#### `configs.test_alias_groups`
 
 Sequences multiple aliases for multi-opportunity tests (opp1 → seq 1, opp2 → seq 2).
 
 ```sql
-CREATE TABLE trs.test_alias_groups (
+CREATE TABLE configs.test_alias_groups (
     tenant_id               TEXT        NOT NULL,
     testalias_group_name    TEXT        NOT NULL,   -- e.g. checkpoint1-grade3-ela-2026
     testalias_id            TEXT        NOT NULL,   -- FK → test_aliases
@@ -704,99 +728,11 @@ CREATE TABLE trs.test_alias_groups (
     PRIMARY KEY (tenant_id, testalias_group_name, sequence),
     UNIQUE      (tenant_id, testalias_id),
     FOREIGN KEY (tenant_id, testalias_id)
-        REFERENCES trs.test_aliases (tenant_id, testalias_id)
+        REFERENCES configs.test_aliases (tenant_id, testalias_id)
 );
 
 CREATE INDEX idx_test_alias_groups_alias
-    ON trs.test_alias_groups (tenant_id, testalias_group_name, sequence);
-```
-
-#### `trs.test_alias_standards`
-
-One row per standard aligned to a `testalias_id`. The `standard_id` matches the
-`component_id` stored in `trs.student_component_scores` when `component_type = 'STANDARD'`.
-
-```sql
-CREATE TABLE trs.test_alias_standards (
-    tenant_id       TEXT    NOT NULL,
-    testalias_id    TEXT    NOT NULL,   -- FK → test_aliases
-    standard_id     TEXT    NOT NULL,   -- e.g. CCSS.ELA-LITERACY.RL.3.1
-    description     TEXT    NOT NULL,
-
-    PRIMARY KEY (tenant_id, testalias_id, standard_id),
-    FOREIGN KEY (tenant_id, testalias_id)
-        REFERENCES trs.test_aliases (tenant_id, testalias_id)
-);
-```
-
-#### `trs.standard_performance_levels`
-
-One row per performance level per standard. Descriptions are standard-specific even when
-level titles (Below Basic / Basic / Proficient / Advanced) repeat across standards.
-
-```sql
-CREATE TABLE trs.standard_performance_levels (
-    tenant_id       TEXT        NOT NULL,
-    testalias_id    TEXT        NOT NULL,
-    standard_id     TEXT        NOT NULL,
-    level           SMALLINT    NOT NULL,   -- 1, 2, 3, 4  (matches component_perf_level in scores)
-    title           TEXT        NOT NULL,   -- e.g. Below Basic, Basic, Proficient, Advanced
-    description     TEXT        NOT NULL,
-    min_score       REAL        NOT NULL,   -- inclusive lower bound; REAL to match overall_scale_score
-    max_score       REAL        NOT NULL,   -- inclusive upper bound of the scale-score range for this level
-
-    PRIMARY KEY (tenant_id, testalias_id, standard_id, level),
-    FOREIGN KEY (tenant_id, testalias_id, standard_id)
-        REFERENCES trs.test_alias_standards (tenant_id, testalias_id, standard_id)
-);
-```
-
-#### `trs.test_alias_measures`
-
-One row per measure type per alias. Controls which score measures are displayed in reports
-and provides labels and descriptions shown to users.
-
-`min_score` / `max_score` are NULL for `performanceLevel` — its score ranges are defined
-per-level in `trs.test_alias_perf_levels`.
-
-```sql
-CREATE TABLE trs.test_alias_measures (
-    tenant_id       TEXT        NOT NULL,
-    testalias_id    TEXT        NOT NULL,   -- FK → test_aliases
-    measure_type    TEXT        NOT NULL,   -- scaleScore | rawScore | lexileScore | quantileScore
-                                            -- | percentCorrect | percentile | performanceLevel
-    show            BOOLEAN     NOT NULL DEFAULT TRUE,
-    label           TEXT        NOT NULL,
-    description     TEXT        NOT NULL,
-    min_score       REAL        NULL,       -- NULL for performanceLevel; REAL to match overall_scale_score
-    max_score       REAL        NULL,       -- NULL for performanceLevel
-
-    PRIMARY KEY (tenant_id, testalias_id, measure_type),
-    FOREIGN KEY (tenant_id, testalias_id)
-        REFERENCES trs.test_aliases (tenant_id, testalias_id)
-);
-```
-
-#### `trs.test_alias_perf_levels`
-
-Overall test-level performance levels. Parallel to `trs.standard_performance_levels` but
-keyed to the alias only — these describe the test's overall score bands, not per-standard.
-`level` matches `overall_perf_level` in `trs.student_opportunities`.
-
-```sql
-CREATE TABLE trs.test_alias_perf_levels (
-    tenant_id       TEXT        NOT NULL,
-    testalias_id    TEXT        NOT NULL,   -- FK → test_aliases
-    level           SMALLINT    NOT NULL,   -- 1, 2, 3, 4  (matches overall_perf_level in student_opportunities)
-    title           TEXT        NOT NULL,   -- e.g. Below Basic, Basic, Proficient, Advanced
-    description     TEXT        NOT NULL,
-    min_score       REAL        NOT NULL,   -- inclusive lower bound; REAL to match overall_scale_score
-    max_score       REAL        NOT NULL,   -- inclusive upper bound
-
-    PRIMARY KEY (tenant_id, testalias_id, level),
-    FOREIGN KEY (tenant_id, testalias_id)
-        REFERENCES trs.test_aliases (tenant_id, testalias_id)
-);
+    ON configs.test_alias_groups (tenant_id, testalias_group_name, sequence);
 ```
 
 **Embargo semantics:**
@@ -822,7 +758,7 @@ containing:
 | `roles` | string array | All roles assigned to the user in SSO |
 
 Role names are defined and managed entirely within Red Hat SSO. TRS does not enumerate or
-hardcode role names, **except for embargo access**, which is governed by `trs.embargo_roles`
+hardcode role names, **except for embargo access**, which is governed by `configs.embargo_roles`
 (see below).
 
 The Lambda authorizer validates the JWT signature against the RH SSO JWKS endpoint and rejects
@@ -830,13 +766,13 @@ expired or tampered tokens before the request reaches the API Lambda. The API La
 `roles` directly from the validated token claims — **no per-request database lookup is needed
 for role resolution** outside of embargo access.
 
-#### `trs.embargo_roles` — Per-Tenant Embargo Access Configuration
+#### `configs.embargo_roles` — Per-Tenant Embargo Access Configuration
 
 Because different tenants may use different role names in their SSO configuration, the set of
 roles that grant embargo visibility is stored per tenant in TRS rather than hardcoded.
 
 ```sql
-CREATE TABLE trs.embargo_roles (
+CREATE TABLE configs.embargo_roles (
     tenant_id  TEXT  NOT NULL,
     role_name  TEXT  NOT NULL,  -- must exactly match a value in the JWT 'roles' array claim
     PRIMARY KEY (tenant_id, role_name)
@@ -844,16 +780,16 @@ CREATE TABLE trs.embargo_roles (
 ```
 
 **How it works:** On an embargoed test request, the API reads the caller's `roles` array from
-the JWT and checks whether any of those role values appear in `trs.embargo_roles` for the
+the JWT and checks whether any of those role values appear in `configs.embargo_roles` for the
 caller's `tenant_id`. If at least one matches, the caller can see the test. If none match,
 the request returns `404 Not Found`.
 
 
-**New normalized RTS relationship tables (replace `school_roster_members`):**
+**Normalized RTS relationship tables (multi-tenant, sourced from per-tenant MSSQL RTS databases):**
 
 ```sql
 -- Direct district ↔ student (replaces derived two-hop path)
-CREATE TABLE trs.district_student (
+CREATE TABLE rts.district_student (
     tenant_id   TEXT     NOT NULL,
     district_id TEXT     NOT NULL,
     student_id  INTEGER  NOT NULL,
@@ -864,7 +800,7 @@ CREATE TABLE trs.district_student (
 PARTITION BY LIST (tenant_id);
 
 -- Direct school ↔ student (replaces school_roster_members)
-CREATE TABLE trs.school_student (
+CREATE TABLE rts.school_student (
     tenant_id   TEXT     NOT NULL,
     school_id   TEXT     NOT NULL,
     student_id  INTEGER  NOT NULL,
@@ -875,7 +811,7 @@ CREATE TABLE trs.school_student (
 PARTITION BY LIST (tenant_id);
 
 -- Direct roster ↔ student (replaces roster_members for CDC path)
-CREATE TABLE trs.roster_student (
+CREATE TABLE rts.roster_student (
     tenant_id   TEXT     NOT NULL,
     roster_id   TEXT     NOT NULL,
     student_id  INTEGER  NOT NULL,
@@ -886,7 +822,7 @@ CREATE TABLE trs.roster_student (
 PARTITION BY LIST (tenant_id);
 
 -- Explicit district ↔ school relationship
-CREATE TABLE trs.district_school (
+CREATE TABLE rts.district_school (
     tenant_id   TEXT     NOT NULL,
     district_id TEXT     NOT NULL,
     school_id   TEXT     NOT NULL,
@@ -895,7 +831,7 @@ CREATE TABLE trs.district_school (
 PARTITION BY LIST (tenant_id);
 
 -- Explicit teacher ↔ roster relationship
-CREATE TABLE trs.teacher_roster (
+CREATE TABLE rts.teacher_roster (
     tenant_id   TEXT     NOT NULL,
     teacher_id  TEXT     NOT NULL,
     roster_id   TEXT     NOT NULL,
@@ -904,10 +840,132 @@ CREATE TABLE trs.teacher_roster (
 PARTITION BY LIST (tenant_id);
 ```
 
-### 6.4 `trs.score_ingest_log` — Idempotency Table
+#### Multi-Tenant RTS Consolidation
+
+Each tenant has its own external **MSSQL RTS database** (e.g., `RTS_TX`, `RTS_VA`, `RTS_IL`).
+All tenant RTS databases share the **same schema**, so the RTS Sync Lambda is a single codebase—
+only the MSSQL connection string changes per `tenant_id`. Data from all tenants is consolidated
+into the same `rts.*` Postgres tables, isolated by `LIST(tenant_id)` partitions.
+
+**Sync architecture:**
+
+```
+EventBridge Cron (per-tenant schedule)
+    ├── { tenant_id: "tx", source: "ssm:///trs/rts/tx/connection" }
+    ├── { tenant_id: "va", source: "ssm:///trs/rts/va/connection" }
+    └── { tenant_id: "il", source: "ssm:///trs/rts/il/connection" }
+         │
+         ▼
+    RTS Sync Lambda (same code, same MSSQL queries per tenant)
+         │
+         ▼
+    rts.school_student      (tenant_id = 'tx' → tx partition)
+    rts.district_student    (tenant_id = 'va' → va partition)
+    ...etc
+```
+
+| Concern | Detail |
+|---------|--------|
+| **Connection management** | MSSQL connection strings stored in SSM Parameter Store (`/trs/rts/{tenant_id}/connection`), encrypted with KMS. Lambda reads the correct connection string based on the `tenant_id` in the EventBridge payload. |
+| **Sync cadence** | Per-tenant schedules — larger tenants (TX: 5.5M students) may use nightly full + 15-min delta; smaller tenants may use 30-min full sync. |
+| **Network connectivity** | Lambda runs in VPC with access to each tenant’s MSSQL via VPN / PrivateLink / VPC peering. |
+| **Error isolation** | One Lambda invocation per tenant (EventBridge fan-out). A TX sync failure does not block VA or IL syncs. |
+| **Partition maintenance** | When onboarding a new tenant, create `LIST` partitions across all `rts.*`, `scores.*`, and `configs.*` tables before the first sync. |
+| **PeerDB impact** | PeerDB replicates `rts.school_student` → ClickHouse `membership_school_mirror` from a single WAL stream. All tenants’ data flows through one replication slot; ClickHouse mirrors are also partitioned by `tenant_id`. |
+
+### 6.4 Test Alias Configuration — S3 JSON Files
+
+Display-level configuration for each test alias — standards, performance levels, measures, and
+score bands — is stored as a **JSON file per `testalias_id`** in S3 rather than in Postgres tables.
+This data is read-only display metadata; it is never used by the ingestion pipeline, CDC, or
+aggregation logic.
+
+**S3 path convention:**
+
+```
+s3://trs-config/{tenant_id}/{testalias_id}.json
+```
+
+**JSON schema:**
+
+```json
+{
+  "testalias_id": "ilearn_ela_cp1",
+  "showStandards": true,
+  "showPerformanceLevels": true,
+  "showScaleScore": true,
+  "showRawScore": false,
+  "showPercentile": false,
+  "showPercentCorrect": false,
+  "showLexile": false,
+  "showQuantile": false,
+  "performanceLevels": [
+    {
+      "level": 1,
+      "label": "Below Proficiency",
+      "description": "..."
+    },
+    { "level": 2, "label": "Approaching Proficiency", "description": "..." },
+    { "level": 3, "label": "Proficient", "description": "..." },
+    { "level": 4, "label": "Exemplary", "description": "..." }
+  ],
+  "scaleScorePldefinitions": [
+    { "minScore": 0, "maxScore": 100, "performanceLevel": 1 },
+    { "minScore": 101, "maxScore": 200, "performanceLevel": 2 },
+    { "minScore": 201, "maxScore": 300, "performanceLevel": 3 },
+    { "minScore": 301, "maxScore": 400, "performanceLevel": 4 }
+  ],
+  "scaleScoreAboveProficiencyLevel": 3,
+  "standardsPublication": "CCSS",
+  "components": [
+    {
+      "id": "3.RF.1",
+      "title": "3.RF.1",
+      "type": "standard",
+      "description": "Know and apply grade-level phonics...",
+      "performanceLevels": [
+        {
+          "level": 1,
+          "label": "Below Proficiency",
+          "description": "...",
+          "skills": ["..."]
+        }
+      ]
+    }
+  ]
+}
+```
+
+> See [testconfigs.json](testconfigs.json) for a complete example.
+
+**Design rationale:**
+
+| Concern | Detail |
+|---------|--------|
+| **Why not Postgres?** | This data is static display metadata — labels, descriptions, score bands. It is never JOINed in queries, never used in aggregation, and never flows through CDC. Postgres tables add schema-migration overhead for what is essentially a configuration file. |
+| **Versioning** | S3 object versioning provides an audit trail of config changes with zero application code. |
+| **Schema flexibility** | New display fields (e.g., `showLexile`, `skills` arrays) can be added to the JSON without DDL migrations. |
+| **Ingestion independence** | The Score Processor never reads these configs. `component_id` values in incoming score events are stored as-is. |
+
+**API Lambda caching:**
+
+The API Lambda loads test-alias configs from S3 and caches them **in-process** per warm
+container instance:
+
+| Item | Value |
+|------|-------|
+| Cache key | `{tenant_id}/{testalias_id}` |
+| TTL | 5 minutes (configurable via `TEST_CONFIG_CACHE_TTL_SEC` env var) |
+| Cold-read latency | ~50–100 ms (S3 `GetObject`) |
+| Warm-read latency | < 1 ms (in-memory `ConcurrentDictionary`) |
+| Invalidation | TTL-based; config changes take effect within one TTL window |
+
+---
+
+### 6.5 `scores.score_ingest_log` — Idempotency Table
 
 ```sql
-CREATE TABLE trs.score_ingest_log (
+CREATE TABLE scores.score_ingest_log (
     s3_key       TEXT        NOT NULL,
     etag         TEXT        NOT NULL,
     processed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -916,14 +974,14 @@ CREATE TABLE trs.score_ingest_log (
 -- Cleanup: pg_cron deletes rows older than 14 days nightly
 ```
 
-### 6.5 `trs.report_cache` — Pre-Computed Aggregate Store
+### 6.6 `scores.report_cache` — Pre-Computed Aggregate Store
 
 Replaces DynamoDB from v1. Holds pre-computed aggregates at school, district, and state scope.
 Written by the Aggregate Refresh Lambda (computed via ClickHouse Silver + membership JOIN or Postgres MV).
 Read first by the API Lambda (Tier 1 of the fallback chain).
 
 ```sql
-CREATE TABLE trs.report_cache (
+CREATE TABLE scores.report_cache (
     -- Key format: "{scope}#{tenant_id}#{scope_id}#{school_year}#{testalias_id}"
     -- Examples:
     --   "school#tx#s-789#2026#cp1-g5-ela"
@@ -936,8 +994,8 @@ CREATE TABLE trs.report_cache (
     computed_by  TEXT        NOT NULL   -- 'clickhouse_silver' | 'postgres_mv' | 'postgres_live' | 'nightly_job'
 );
 
-CREATE INDEX idx_report_cache_expiry ON trs.report_cache (expires_at);
--- pg_cron cleanup: DELETE FROM trs.report_cache WHERE expires_at < now();
+CREATE INDEX idx_report_cache_expiry ON scores.report_cache (expires_at);
+-- pg_cron cleanup: DELETE FROM scores.report_cache WHERE expires_at < now();
 ```
 
 **Cache TTLs:**
@@ -949,13 +1007,13 @@ CREATE INDEX idx_report_cache_expiry ON trs.report_cache (expires_at);
 | District | 5 minutes | Balances freshness vs. cost for large districts |
 | State | Until next nightly run | State aggregates change slowly; nightly is sufficient |
 
-### 6.6 Postgres Materialized Views (Fallback Pre-Aggregation)
+### 6.7 Postgres Materialized Views (Fallback Pre-Aggregation)
 
 These MVs are the Tier 3 fallback for school and district scope when both `report_cache` is stale and ClickHouse is unavailable. `REFRESH MATERIALIZED VIEW CONCURRENTLY` re-reads source data entirely — correct for rescores (no double-counting).
 
 ```sql
--- School-level overall aggregate MV
-CREATE MATERIALIZED VIEW trs.mv_school_overall AS
+-- School-level overall aggregate MV (cross-schema JOIN: scores + rts)
+CREATE MATERIALIZED VIEW scores.mv_school_overall AS
 SELECT
     ss.tenant_id,
     ss.school_year,
@@ -976,17 +1034,17 @@ SELECT
     AVG(ss.overall_raw_score)                              AS avg_raw_score,
     AVG(ss.overall_standard_error)                         AS avg_standard_error,
     NOW()                                                  AS refreshed_at
-FROM trs.student_opportunities ss
-JOIN trs.school_student ss_m
+FROM scores.student_opportunities ss
+JOIN rts.school_student ss_m
     ON ss.tenant_id = ss_m.tenant_id AND ss.student_id = ss_m.student_id
 WHERE ss.is_aggregate_eligible = TRUE AND ss.use_for_aggregation = TRUE AND ss_m.active = TRUE
 GROUP BY ss.tenant_id, ss.school_year, ss.testalias_id, ss_m.school_id;
 
 CREATE UNIQUE INDEX uq_mv_school_overall
-    ON trs.mv_school_overall (tenant_id, school_year, testalias_id, school_id);
+    ON scores.mv_school_overall (tenant_id, school_year, testalias_id, school_id);
 
--- District-level overall aggregate MV
-CREATE MATERIALIZED VIEW trs.mv_district_overall AS
+-- District-level overall aggregate MV (cross-schema JOIN: scores + rts)
+CREATE MATERIALIZED VIEW scores.mv_district_overall AS
 SELECT
     ss.tenant_id,
     ss.school_year,
@@ -1007,14 +1065,14 @@ SELECT
     AVG(ss.overall_raw_score)                              AS avg_raw_score,
     AVG(ss.overall_standard_error)                         AS avg_standard_error,
     NOW()                                                  AS refreshed_at
-FROM trs.student_opportunities ss
-JOIN trs.district_student ds
+FROM scores.student_opportunities ss
+JOIN rts.district_student ds
     ON ss.tenant_id = ds.tenant_id AND ss.student_id = ds.student_id
 WHERE ss.is_aggregate_eligible = TRUE AND ss.use_for_aggregation = TRUE AND ds.active = TRUE
 GROUP BY ss.tenant_id, ss.school_year, ss.testalias_id, ds.district_id;
 
 CREATE UNIQUE INDEX uq_mv_district_overall
-    ON trs.mv_district_overall (tenant_id, school_year, testalias_id, district_id);
+    ON scores.mv_district_overall (tenant_id, school_year, testalias_id, district_id);
 ```
 
 **Refresh schedule (Lambda cron):**
@@ -1024,7 +1082,7 @@ CREATE UNIQUE INDEX uq_mv_district_overall
 | `mv_school_overall` | Every 15 min during test window; nightly off-window |
 | `mv_district_overall` | Every 30 min during test window; nightly off-window |
 
-### 6.7 Postgres Materialized Views — Component Scores (Current-Year Fallback Only)
+### 6.8 Postgres Materialized Views — Component Scores (Current-Year Fallback Only)
 
 At 1.65 billion rows/year (TX scale), a single Postgres MV spanning all years and all component types is **not feasible**. The following pragmatic constraints apply:
 
@@ -1034,7 +1092,7 @@ At 1.65 billion rows/year (TX scale), a single Postgres MV spanning all years an
 
 ```sql
 -- Current-year school-level STANDARD aggregate (Tier 3 fallback for component queries)
-CREATE MATERIALIZED VIEW trs.mv_school_standards_current AS
+CREATE MATERIALIZED VIEW scores.mv_school_standards_current AS
 SELECT
     scs.tenant_id,
     scs.school_year,
@@ -1053,10 +1111,10 @@ SELECT
     COUNT(*) FILTER (WHERE scs.perf_level = 9)             AS pl_9,
     COUNT(*) FILTER (WHERE scs.perf_level = 10)            AS pl_10,
     NOW()                                                  AS refreshed_at
-FROM trs.student_component_scores scs
-JOIN trs.school_student ss_m
+FROM scores.student_component_scores scs
+JOIN rts.school_student ss_m
     ON scs.tenant_id = ss_m.tenant_id AND scs.student_id = ss_m.student_id
-JOIN trs.student_opportunities so
+JOIN scores.student_opportunities so
     ON scs.tenant_id = so.tenant_id AND scs.opp_key = so.opp_key
 WHERE 1=1
     --and scs.school_year          = 2026          -- Partition pruning — update each school year
@@ -1067,7 +1125,7 @@ WHERE 1=1
 GROUP BY scs.tenant_id, scs.school_year, scs.testalias_id, ss_m.school_id, scs.component_id;
 
 CREATE UNIQUE INDEX uq_mv_school_standards_current
-    ON trs.mv_school_standards_current (tenant_id, school_year, testalias_id, school_id, component_id);
+    ON scores.mv_school_standards_current (tenant_id, school_year, testalias_id, school_id, component_id);
 ```
 
 > **Guardrail — no district-wide live component scan on Postgres.** Because raw `GROUP BY` over component scores at district scope risks exhausting Aurora connection/IO budget, the Tier 3b live query path for component scores is **restricted to school scope only**. District-scope component requests that cannot be served from `report_cache` or ClickHouse Silver + JOIN are **rejected with HTTP 503** (or served from a long-TTL stale cache entry) rather than falling through to a live Postgres scan.
@@ -1080,12 +1138,12 @@ CREATE UNIQUE INDEX uq_mv_school_standards_current
 
 ---
 
-### 6.8 `trs.score_ingest_rejections` — Rejection Audit & Replay Tracking
+### 6.9 `scores.score_ingest_rejections` — Rejection Audit & Replay Tracking
 
 When a score file cannot be processed, Score Processor inserts a row here for audit and replay.
 
 ```sql
-CREATE TABLE trs.score_ingest_rejections (
+CREATE TABLE scores.score_ingest_rejections (
     id                  BIGSERIAL    PRIMARY KEY,
     tenant_id           TEXT         NOT NULL,
     rejection_reason    TEXT         NOT NULL
@@ -1102,9 +1160,9 @@ CREATE TABLE trs.score_ingest_rejections (
     replay_queued_at    TIMESTAMPTZ               -- set when file is re-queued to SQS
 );
 
-CREATE INDEX idx_sir_unresolved ON trs.score_ingest_rejections (tenant_id, rejected_at)
+CREATE INDEX idx_sir_unresolved ON scores.score_ingest_rejections (tenant_id, rejected_at)
     WHERE resolved = FALSE;
-CREATE INDEX idx_sir_test_key   ON trs.score_ingest_rejections (tenant_id, test_key)
+CREATE INDEX idx_sir_test_key   ON scores.score_ingest_rejections (tenant_id, test_key)
     WHERE resolved = FALSE;
 ```
 
@@ -1116,7 +1174,7 @@ See [implementation/Score_Reject_Handling.md](implementation/Score_Reject_Handli
 
 ## 7. Database Schema — ClickHouse Medallion Architecture
 
-ClickHouse mirrors score data from Postgres via the CDC pipeline and serves fast aggregation queries. It is not the source of truth. If ClickHouse is unavailable, Postgres serves all queries.
+ClickHouse mirrors score data from Postgres via the CDC pipeline and serves fast aggregation queries. It is not the source of truth. If ClickHouse is unavailable, Postgres serves all queries. ClickHouse uses the `trs` database name (not the Postgres schema names) since it is a separate system.
 
 ```
 [Bronze Layer]                      [Silver Layer]
@@ -1494,14 +1552,14 @@ Scoring System
     ├─ 1. Download S3 score file
     ├─ 2. Validate required fields
     ├─ 3. Idempotency check (score_ingest_log)
-    ├─ 4. Resolve testalias_id from test_key_config cache
+    ├─ 4. Resolve testalias_id from test_keys (Postgres configs schema, cached in-process)
     ├─ 5. Compute is_aggregate_eligible
     ├─ 6. Conflict guard (same opp_key + date_scored, different data → DLQ + alert)
-    ├─ 7. UPSERT → Aurora student_opportunities (source of truth)
+    ├─ 7. UPSERT → Aurora scores.student_opportunities (source of truth)
     │       ON CONFLICT ... WHERE EXCLUDED.date_scored > existing
-    ├─ 8. UPSERT → Aurora student_component_scores
+    ├─ 8. UPSERT → Aurora scores.student_component_scores
     │       ON CONFLICT ... WHERE EXCLUDED.date_scored > existing
-    ├─ 9. INSERT → score_ingest_log (idempotency record)
+    ├─ 9. INSERT → scores.score_ingest_log (idempotency record)
     └─10. Acknowledge SQS message only after Aurora commit
     │
     │  *** NO direct ClickHouse write ***
@@ -1558,19 +1616,20 @@ Score Processor receives rescore (same OppKey, higher DateScored):
 ### 8.3 Membership Sync Path (RTS → TRS)
 
 ```
-RTS external event or nightly full sync
+Per-tenant MSSQL RTS databases (TX, VA, IL — same schema)
     │
-    ▼
+    ▼ EventBridge fan-out (one invocation per tenant_id)
   Lambda: RTS Membership Sync
+    │  (reads tenant-specific MSSQL connection from SSM: /trs/rts/{tenant_id}/connection)
     │
-    ├─▶ Aurora: UPSERT district_student, school_student, roster_student,
-    │           district_school, teacher_roster, student_attributes
+    ├─▶ Aurora: UPSERT rts.district_student, rts.school_student, rts.roster_student,
+    │           rts.district_school, rts.teacher_roster, student_attributes
     │
     └─▶ ClickHouse: INSERT INTO trs.student_attributes  (best-effort; ReplacingMergeTree)
     │
     ▼
-  Note: PeerDB mirrors school_student → membership_school_mirror and
-        district_student → membership_district_mirror via CDC replication jobs.
+  Note: PeerDB mirrors rts.school_student → membership_school_mirror and
+        rts.district_student → membership_district_mirror via CDC replication jobs.
         No manual ClickHouse refresh needed for membership mirrors.
 ```
 
@@ -1592,23 +1651,23 @@ SNS rescore notification → targeted cache invalidation
     │      District:  overall Silver + membership_district_mirror JOIN → all districts in one pass
     │      Component: component Silver + overall Silver opp_key JOIN + membership JOIN
     │    Upsert results:
-    │      INSERT INTO trs.report_cache (cache_key, payload, computed_at, expires_at, computed_by='clickhouse_silver')
+    │      INSERT INTO scores.report_cache (cache_key, payload, computed_at, expires_at, computed_by='clickhouse_silver')
     │      ON CONFLICT (cache_key) DO UPDATE SET payload=EXCLUDED.payload, ...
     │
     ├─ [ClickHouse UNAVAILABLE]:
     │    Execute Postgres MV refresh:
-    │      REFRESH MATERIALIZED VIEW CONCURRENTLY trs.mv_school_overall;
-    │      REFRESH MATERIALIZED VIEW CONCURRENTLY trs.mv_district_overall;
+    │      REFRESH MATERIALIZED VIEW CONCURRENTLY scores.mv_school_overall;
+    │      REFRESH MATERIALIZED VIEW CONCURRENTLY scores.mv_district_overall;
     │    Query refreshed Postgres MVs:
-    │      SELECT * FROM trs.mv_school_overall WHERE ...
-    │      SELECT * FROM trs.mv_district_overall WHERE ...
+    │      SELECT * FROM scores.mv_school_overall WHERE ...
+    │      SELECT * FROM scores.mv_district_overall WHERE ...
     │    Upsert results:
-    │      INSERT INTO trs.report_cache (..., computed_by='postgres_mv')
+    │      INSERT INTO scores.report_cache (..., computed_by='postgres_mv')
     │      ON CONFLICT (cache_key) DO UPDATE SET ...
     │
     └─ ALSO ALWAYS (regardless of ClickHouse status):
-         REFRESH MATERIALIZED VIEW CONCURRENTLY trs.mv_school_overall
-         REFRESH MATERIALIZED VIEW CONCURRENTLY trs.mv_district_overall
+         REFRESH MATERIALIZED VIEW CONCURRENTLY scores.mv_school_overall
+         REFRESH MATERIALIZED VIEW CONCURRENTLY scores.mv_district_overall
          (Keeps Postgres MVs current as a standing Tier 3 fallback)
 ```
 
@@ -1621,7 +1680,7 @@ Processor rejects it permanently rather than retrying — retrying will not fix 
 
 | Code | Trigger |
 |------|---------|
-| `UNKNOWN_TEST_KEY` | `test_key` in the file has no matching row in `trs.test_keys` |
+| `UNKNOWN_TEST_KEY` | `test_key` in the file has no matching row in `configs.test_keys` |
 | `VALIDATION_FAILED` | Required fields missing or file is unparseable |
 | `DATA_CONFLICT` | Same `opp_key` + `date_scored` but different score data |
 
@@ -1632,7 +1691,7 @@ Score Processor detects unprocessable file
     │
     ├─ 1. Copy file to s3://trs-rejected/{tenant_id}/{reason}/{test_key}/{date}/{filename}
     │       (preserve original in trs-raw — do NOT delete)
-    ├─ 2. INSERT INTO trs.score_ingest_rejections (audit log + resolution tracking)
+    ├─ 2. INSERT INTO scores.score_ingest_rejections (audit log + resolution tracking)
     ├─ 3. Emit CloudWatch metric TRS/Ingest/ScoreFileRejected
     │       CloudWatch alarms → SNS → ops (alarm fires once per threshold breach,
     │       not once per file — avoids alert storms on bulk missing-config rejections)
@@ -1726,11 +1785,11 @@ or database query. It enforces the embargo visibility gate with two in-process c
 
 | Lookup | Source | Cache TTL |
 |--------|--------|-----------|
-| `embargo_until` for the `testalias_id` | `trs.test_aliases` | 60 s per `(tenant_id, testalias_id)` |
-| Permitted embargo role names | `trs.embargo_roles` | 5 min per `tenant_id` |
+| `embargo_until` for the `testalias_id` | `configs.test_aliases` | 60 s per `(tenant_id, testalias_id)` |
+| Permitted embargo role names | `configs.embargo_roles` | 5 min per `tenant_id` |
 
 If the test is currently embargoed and none of the caller's JWT `roles` claims match any row in
-`trs.embargo_roles` for the tenant, the service throws `EmbargoException` → **HTTP 404**.
+`configs.embargo_roles` for the tenant, the service throws `EmbargoException` → **HTTP 404**.
 
 The **test discovery endpoint** (`GET /v1/{tenantId}/tests?schoolYear={Y}`) is the only place
 callers learn which `testalias_id`s exist. It applies the same `embargo_roles` check and omits
@@ -1904,15 +1963,15 @@ ClickHouse is current → API resumes ClickHouse Silver + membership JOIN querie
 
 | Service | Config | Monthly On-Demand |
 |---------|--------|------------------|
-| Aurora Serverless v2 (PRIMARY — all scores + config + membership) | avg 0.5–1 ACU; ~50 GB storage | ~$53–96 |
+| Aurora Serverless v2 (PRIMARY — three schemas: configs, scores, rts) | avg 0.5–1 ACU; ~50 GB storage | ~$53–96 |
 | EC2: ClickHouse single node (aggregation only) | `r6i.2xlarge` (64 GB RAM, 8 vCPU) | $362 |
 | EBS: ClickHouse data volume | 200 GB `gp3` | $16 |
 | Lambda (Score Processor + API + RTS Sync + Aggregate Refresh) | ~50M invocations | $10–20 |
-| S3 (raw score files + ClickHouse backup) | ~5 TB/year | $15–30 |
+| S3 (raw score files + config bucket + ClickHouse backup) | ~5 TB/year + config negligible | $15–30 |
 | SQS (ingest queue + DLQ + PeerDB events) | ~50M messages | $3–5 |
 | CloudFront + API Gateway | 1,000 concurrent users | $10–20 |
-| CloudWatch (metrics + logs + alarms) | | $10–20 |
-| **Base Subtotal** | | **~$479–567/month** |
+| CloudWatch + ADOT + X-Ray (metrics, structured logs, traces, alarms) | OTel via ADOT; 5% trace sampling | $37–63 |
+| **Base Subtotal** | | **~$506–610/month** |
 
 ### 12.2 CDC Layer (Option B — PeerDB, Recommended)
 
@@ -1965,6 +2024,10 @@ ClickHouse is current → API resumes ClickHouse Silver + membership JOIN querie
 | 16 | **`use_for_aggregation` flag + `use_for_aggregation_set_at` version key for retest selection** | Score Processor sets flag in a single Postgres transaction (INSERT new opp TRUE + UPDATE prior opps FALSE) ensuring no window where two opps are simultaneously selected. `use_for_aggregation_set_at` is the `argMaxState` version key — not `date_scored` — because `date_scored` does not change when the flag is toggled. |
 | 17 | **Circuit breaker on ClickHouse health probe** | A single 200ms per-request probe during sustained ClickHouse outage wastes 200ms on every API call before fallback. In-process circuit breaker caches health state; OPEN state skips Tier 2 entirely for 30s TTL. |
 | 18 | **WAL replication slot size monitoring alarm** | If `max_slot_wal_keep_size` is reached, the slot is invalidated and PeerDB requires a full 30–90 minute Initial Load re-snapshot. CloudWatch alarms at 80% and 90% of cap provide early warning. |
+| 19 | **OpenTelemetry (ADOT) for unified observability** | Vendor-neutral OTel SDK replaces ad-hoc CloudWatch PutMetric calls. ADOT Lambda Layer and Fargate sidecar export traces (X-Ray), metrics (CloudWatch EMF), and structured logs (CloudWatch Logs) from a single instrumentation surface. `TraceId` on every log line enables jump-to-trace. 5% production trace sampling (100% on errors) controls X-Ray cost. CDC traces are separate from ingest traces (linked by `opp_key`) to avoid artificially long spans. |
+| 20 | **Test-alias display config in S3 JSON, not Postgres tables** | Standards, performance levels, measures, and score bands are static display metadata — never JOINed in queries, never used in aggregation, never flowing through CDC. Storing them as per-`testalias_id` JSON files in S3 eliminates four Postgres config tables (`test_alias_standards`, `standard_performance_levels`, `test_alias_measures`, `test_alias_perf_levels`), avoids schema migrations for display-field changes, and gives free versioning via S3 object versioning. API Lambda caches configs in-process (5 min TTL). |
+| 21 | **Three Postgres schemas (`configs`, `scores`, `rts`) in one database** | Logical separation by concern — config metadata, score data, and membership mirrors — with zero performance cost. Cross-schema JOINs work identically to same-schema JOINs, preserving all materialized views and fallback queries. Separate schemas enable independent `GRANT` permissions (e.g., Score Processor can only write to `scores.*`), per-schema `pg_dump`, and clearer code navigation. Separate databases were rejected because Postgres does not support cross-database JOINs. |
+| 22 | **Multi-tenant RTS consolidation into shared `rts` schema** | Each tenant has its own external MSSQL RTS database, but all share the same schema. The RTS Sync Lambda is a single codebase; only the connection string changes per `tenant_id`. All tenants’ membership data lands in the same `rts.*` tables, isolated by `LIST(tenant_id)` partitions. EventBridge fan-out gives per-tenant error isolation. PeerDB replicates from one WAL stream regardless of tenant count. |
 
 ---
 
@@ -1976,10 +2039,10 @@ These requirements **must** be enforced before enabling PeerDB replication. Skip
 
 ```sql
 -- Run once per replicated table on the Aurora Postgres instance
-ALTER TABLE trs.student_opportunities        REPLICA IDENTITY FULL;
-ALTER TABLE trs.student_component_scores     REPLICA IDENTITY FULL;
-ALTER TABLE trs.school_student               REPLICA IDENTITY FULL;
-ALTER TABLE trs.district_student             REPLICA IDENTITY FULL;
+ALTER TABLE scores.student_opportunities        REPLICA IDENTITY FULL;
+ALTER TABLE scores.student_component_scores     REPLICA IDENTITY FULL;
+ALTER TABLE rts.school_student                  REPLICA IDENTITY FULL;
+ALTER TABLE rts.district_student                REPLICA IDENTITY FULL;
 ```
 
 > **WAL size impact:** `REPLICA IDENTITY FULL` increases WAL volume because every UPDATE and DELETE
@@ -2015,9 +2078,9 @@ replication jobs are configured. No Aurora views are required for ClickHouse sch
 
 ```sql
 -- Required before configuring PeerDB CDC jobs for membership mirrors:
-ALTER TABLE trs.school_student    REPLICA IDENTITY FULL;  -- source for membership_school_mirror
-ALTER TABLE trs.district_student  REPLICA IDENTITY FULL;  -- source for membership_district_mirror
--- (school_student, district_student, roster_student, district_school, teacher_roster
+ALTER TABLE rts.school_student    REPLICA IDENTITY FULL;  -- source for membership_school_mirror
+ALTER TABLE rts.district_student  REPLICA IDENTITY FULL;  -- source for membership_district_mirror
+-- (rts.school_student, rts.district_student, rts.roster_student, rts.district_school, rts.teacher_roster
 --  must be created; see §6.3 for full DDL)
 ```
 
@@ -2063,9 +2126,139 @@ Emits custom CloudWatch metric: `TRS/CDC/WALSlotSizeMB`.
 
 ---
 
-## 15. MVP Scope & Future Enhancements
+## 15. Observability — OpenTelemetry
 
-### 15.1 MVP Scope
+All TRS services emit **traces**, **metrics**, and **structured logs** via the [OpenTelemetry](https://opentelemetry.io/) (OTel) SDK. Telemetry is collected by the **AWS Distro for OpenTelemetry (ADOT)** and exported to CloudWatch (X-Ray for traces, CloudWatch Metrics via EMF for custom metrics, CloudWatch Logs for structured JSON logs). This replaces ad-hoc `Console.WriteLine` / `ILogger` text logging with a unified, vendor-neutral observability pipeline.
+
+### 15.1 Why OpenTelemetry
+
+| Reason | Detail |
+|--------|--------|
+| **Vendor-neutral** | OTel is a CNCF standard. Swapping backends (e.g., Datadog, Grafana Cloud) requires only a collector config change — no application code changes. |
+| **Distributed tracing across async boundaries** | A single score ingestion spans S3 → SQS → Score Processor Lambda → Postgres UPSERT → PeerDB CDC → Sign-Pair Transformer → ClickHouse Bronze INSERT. OTel `TraceId` propagation via W3C `traceparent` header and SQS message attributes links all legs into one trace. |
+| **Correlation** | Every log line carries `TraceId` and `SpanId`, enabling jump-from-log-to-trace in CloudWatch / X-Ray without manual grep. |
+| **Native .NET 8 support** | `System.Diagnostics.Activity` is the built-in .NET tracing primitive; the OTel .NET SDK bridges it to OTLP with zero custom abstractions. |
+| **AWS-managed collector** | ADOT Lambda Layer and ADOT Fargate sidecar handle export batching, retry, and credential management — no self-hosted collector infrastructure. |
+
+### 15.2 Instrumentation by Component
+
+| Component | OTel Integration | Key Spans / Metrics |
+|-----------|-----------------|--------------------|
+| **Lambda: Score Processor** | ADOT Lambda Layer + `OpenTelemetry.Instrumentation.AWSLambda` | Root span `ScoreProcessor.HandleBatch`; child spans: `S3.Download`, `Validate`, `Postgres.Upsert`; metrics: `trs.ingest.batch_size`, `trs.ingest.upsert_duration_ms`, `trs.ingest.rejection_count` |
+| **Lambda: API** | ADOT Lambda Layer + `OpenTelemetry.Instrumentation.AWSLambda` + `OpenTelemetry.Instrumentation.Http` | Root span `API.HandleRequest`; child spans: `EmbargoCheck`, `ReportCache.Lookup`, `ClickHouse.Query`, `Postgres.MV.Query`, `Postgres.Live.Query`; span attribute `served_from` = tier that served the response; metrics: `trs.api.request_duration_ms`, `trs.api.tier_used` (counter by tier label), `trs.api.circuit_breaker_state` |
+| **Lambda: RTS Membership Sync** | ADOT Lambda Layer | Root span `RTSSync.Handle`; child spans: `RTS.Fetch`, `Postgres.Upsert`, `ClickHouse.MirrorWrite`; metrics: `trs.rts.sync_duration_ms`, `trs.rts.rows_synced` |
+| **Lambda: Aggregate Refresh** | ADOT Lambda Layer | Root span `AggregateRefresh.Run`; child spans per scope: `ClickHouse.SchoolQuery`, `ClickHouse.DistrictQuery`, `Postgres.CacheWrite`; metrics: `trs.aggregate.refresh_duration_ms`, `trs.aggregate.schools_refreshed` |
+| **Fargate: Sign-Pair Transformer** | ADOT Sidecar Container + `OpenTelemetry.Instrumentation.Http` | Root span `Transformer.ProcessBatch`; child spans: `SQS.Receive`, `SignPair.Emit`, `ClickHouse.BatchInsert`; metrics: `trs.cdc.batch_size`, `trs.cdc.insert_duration_ms`, `trs.cdc.dlq_count` |
+| **Fargate: PeerDB Engine** | ADOT Sidecar Container (external process — log-based only) | Structured JSON logs with `TraceId` from WAL LSN correlation; metrics: `trs.peerdb.lag_bytes`, `trs.peerdb.events_per_second` |
+
+### 15.3 Trace Context Propagation
+
+End-to-end traces require propagating `TraceId` across async boundaries:
+
+| Boundary | Propagation Method |
+|----------|-------------------|
+| API Gateway → Lambda | Automatic via X-Ray header (`X-Amzn-Trace-Id`) — ADOT Layer bridges to W3C `traceparent` |
+| S3 Event → SQS → Score Processor Lambda | SQS message attribute `traceparent` set by S3 event notification (or injected by a thin EventBridge pipe); ADOT Lambda Layer extracts on receive |
+| Postgres WAL → PeerDB → SQS → Transformer | Transformer creates a **new trace** linked to the ingest trace via `opp_key` span attribute (not direct parent — CDC is eventually consistent). Log correlation uses `opp_key` as the join key between ingest and CDC traces. |
+| Transformer → ClickHouse HTTP INSERT | `traceparent` header on the ClickHouse HTTP request; ClickHouse ignores it but it appears in access logs for correlation |
+
+> **Design choice:** The CDC path (PeerDB → Transformer → ClickHouse) starts a **new trace** rather than continuing the ingest trace. This avoids artificially long traces (minutes to hours of CDC lag) that break trace UI visualizations. The two traces are linked by `opp_key` for cross-trace investigation.
+
+### 15.4 Structured Logging Convention
+
+All services use `Microsoft.Extensions.Logging.ILogger` with the OTel Log Bridge (`OpenTelemetry.Extensions.Logging`). Logs are emitted as structured JSON with automatic enrichment:
+
+```json
+{
+  "Timestamp": "2026-03-17T14:22:05.123Z",
+  "TraceId": "abc123def456...",
+  "SpanId": "0a1b2c3d...",
+  "Level": "Information",
+  "Category": "TRS.ScoreProcessor",
+  "Message": "Batch upsert completed",
+  "tenant_id": "tx",
+  "opp_count": 10,
+  "duration_ms": 42,
+  "school_year": 2026
+}
+```
+
+**Mandatory log attributes** (enforced by a shared `TrsLogEnricher` middleware):
+
+| Attribute | Source | Purpose |
+|-----------|--------|--------|
+| `TraceId` | OTel SDK (automatic) | Cross-reference to X-Ray trace |
+| `SpanId` | OTel SDK (automatic) | Pinpoint within a trace |
+| `tenant_id` | JWT claim or event payload | Multi-tenant log filtering |
+| `component` | Service name constant | Filter by service in CloudWatch Logs Insights |
+| `school_year` | Request/event context | Partition-aware log queries |
+
+### 15.5 Custom Metrics (OTel → CloudWatch EMF)
+
+OTel metrics are exported via ADOT to CloudWatch using Embedded Metric Format (EMF). These replace the existing `PutMetricData` calls with SDK-native counters and histograms.
+
+| Metric Name | Type | Labels | Emitted By | Replaces |
+|-------------|------|--------|-----------|----------|
+| `trs.api.request_duration_ms` | Histogram | `scope`, `tier`, `tenant_id` | API Lambda | Manual CloudWatch PutMetric |
+| `trs.api.tier_used` | Counter | `tier` (`cache`, `clickhouse`, `postgres_mv`, `postgres_live`) | API Lambda | `TRS/API/ClickHouseFallback` |
+| `trs.api.circuit_breaker_state` | Gauge | `state` (`closed`, `open`, `half_open`) | API Lambda | `TRS/API/CircuitBreakerOpen` |
+| `trs.ingest.batch_size` | Histogram | `tenant_id` | Score Processor | — |
+| `trs.ingest.upsert_duration_ms` | Histogram | `tenant_id` | Score Processor | — |
+| `trs.ingest.rejection_count` | Counter | `tenant_id`, `reason` | Score Processor | `TRS/Ingest/ScoreFileRejected` |
+| `trs.cdc.insert_duration_ms` | Histogram | `table` | Transformer | — |
+| `trs.cdc.batch_size` | Histogram | `table` | Transformer | — |
+| `trs.cdc.dlq_count` | Counter | `reason` | Transformer | `TRS/CDC/SchemaError` |
+| `trs.cdc.wal_slot_lag_mb` | Gauge | `slot_name` | WAL Monitor Lambda | `TRS/CDC/WALSlotSizeMB` |
+| `trs.rts.sync_duration_ms` | Histogram | `tenant_id` | RTS Sync Lambda | — |
+| `trs.aggregate.refresh_duration_ms` | Histogram | `scope` | Aggregate Refresh | — |
+
+> **CloudWatch alarms** continue to fire on the CloudWatch metric namespace. ADOT exports OTel metrics into `TRS/OTel` namespace. Existing alarm definitions (`TRS/API/CircuitBreakerOpen`, `TRS/CDC/WALSlotSizeMB`, DLQ depth) are updated to reference the new namespace.
+
+### 15.6 ADOT Deployment Configuration
+
+**Lambda (all four Lambda functions):**
+
+| Setting | Value |
+|---------|-------|
+| Lambda Layer | `aws-otel-dotnet-amd64-ver-1-x` (latest ADOT .NET layer) |
+| Environment variable | `AWS_LAMBDA_EXEC_WRAPPER=/opt/otel-instrument` |
+| Environment variable | `OTEL_SERVICE_NAME=trs-<function-name>` |
+| Environment variable | `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317` (layer-local collector) |
+| Environment variable | `OTEL_TRACES_EXPORTER=otlp` |
+| Environment variable | `OTEL_METRICS_EXPORTER=otlp` |
+| Environment variable | `OTEL_LOGS_EXPORTER=otlp` |
+| Environment variable | `OTEL_RESOURCE_ATTRIBUTES=deployment.environment=prod,service.namespace=trs` |
+| Tracing backend | AWS X-Ray (via ADOT collector pipeline) |
+
+**Fargate (Sign-Pair Transformer + PeerDB):**
+
+| Setting | Value |
+|---------|-------|
+| Sidecar container | `public.ecr.aws/aws-observability/aws-otel-collector:latest` |
+| Sidecar CPU / Memory | 0.25 vCPU / 0.5 GB (shared with application container) |
+| OTLP endpoint | `http://localhost:4317` (sidecar gRPC) |
+| Collector config | Export traces → X-Ray; metrics → CloudWatch EMF; logs → CloudWatch Logs |
+| `OTEL_SERVICE_NAME` | `trs-cdc-transformer` / `trs-peerdb` |
+
+### 15.7 Cost Impact
+
+ADOT is free (open-source collector on AWS-managed infrastructure). Cost impact is limited to the telemetry destinations:
+
+| Item | Estimated Monthly Cost |
+|------|----------------------|
+| X-Ray traces (sampled at 5% in prod, 100% in dev) | ~$5–15 |
+| CloudWatch Logs (structured JSON, ~2× volume vs. plain text) | ~$10–25 |
+| CloudWatch Metrics (EMF custom metrics, ~20 metrics × 5 dimensions) | ~$3–8 |
+| ADOT Fargate sidecar (0.25 vCPU / 0.5 GB × 2 tasks) | ~$9 |
+| **OTel Subtotal** | **~$27–57/month** |
+
+> **Sampling strategy:** Production traces are sampled at **5%** (tail-based, via ADOT collector rules) to control X-Ray costs. Error traces and traces exceeding latency thresholds (API > 2s, Transformer > 5s) are always captured at 100%. Development and staging environments use 100% sampling.
+
+---
+
+## 16. MVP Scope & Future Enhancements
+
+### 16.1 MVP Scope
 
 - ✅ Roster-level aggregates (overall, per-student, standard-level)
 - ✅ School and district aggregates (overall) — via `report_cache` + Postgres MVs + ClickHouse Silver + membership JOIN
@@ -2082,8 +2275,9 @@ Emits custom CloudWatch metric: `TRS/CDC/WALSlotSizeMB`.
 - ✅ Red Hat SSO authentication; multi-tenant isolation via `tenant_id` partition
 - ✅ API circuit breaker for ClickHouse health
 - ✅ WAL replication slot size monitoring alert
+- ✅ OpenTelemetry distributed tracing, structured logging, and metrics via ADOT
 
-### 15.2 Deferred Enhancements
+### 16.2 Deferred Enhancements
 
 | # | Enhancement | Notes |
 |---|-------------|-------|
@@ -2097,12 +2291,12 @@ Emits custom CloudWatch metric: `TRS/CDC/WALSlotSizeMB`.
 
 ---
 
-## 16. Tech Stack Reference
+## 17. Tech Stack Reference
 
 | Layer | Technology | Notes |
 |-------|-----------|-------|
 | Language | C# (.NET 8) | Lambda functions, API layer, Fargate transformer |
-| Primary DB | Aurora PostgreSQL Serverless v2 | **Source of truth for all data**: scores, membership, config, report cache, idempotency |
+| Primary DB | Aurora PostgreSQL Serverless v2 | **Source of truth for all data** — three schemas: `configs` (test config, embargo), `scores` (student opportunities, components, report cache, MVs), `rts` (membership mirrors from per-tenant MSSQL RTS databases) |
 | Analytical DB | ClickHouse 24.x — single `r6i.2xlarge` | Self-hosted on EC2; aggregation-only; Bronze/Silver Medallion; rebuilt from Postgres on total loss |
 | CDC | PeerDB on Fargate | WAL logical replication; Before/After images; LSN checkpointing; SQS event handoff |
 | CDC Transformer | C# `BackgroundService` on Fargate | Sign-Pair (-1/+1) emission; Bronze HTTP batch INSERT |
@@ -2110,14 +2304,16 @@ Emits custom CloudWatch metric: `TRS/CDC/WALSlotSizeMB`.
 | Object storage | AWS S3 | Raw score files; ClickHouse daily backup |
 | Compute | AWS Lambda + Fargate | Lambda: Score Processor, RTS Sync, API handlers, Aggregate Refresh; Fargate: PeerDB, Transformer |
 | API | AWS API Gateway (HTTP API) | REST endpoints |
-| Auth | Red Hat SSO (OIDC) | External IdP — sole source of user identity and roles. OIDC `id_token` (RS256); Lambda authorizer validates against RH SSO JWKS endpoint. JWT carries `tenant_id` + `roles` (string array). TRS has no local users table. Embargo access determined by matching JWT roles against `trs.embargo_roles` per tenant |
+| Auth | Red Hat SSO (OIDC) | External IdP — sole source of user identity and roles. OIDC `id_token` (RS256); Lambda authorizer validates against RH SSO JWKS endpoint. JWT carries `tenant_id` + `roles` (string array). TRS has no local users table. Embargo access determined by matching JWT roles against `configs.embargo_roles` per tenant |
 | Front-end | React SPA | Hosted on CloudFront |
 | CDN | AWS CloudFront | SPA delivery; static asset caching |
 | IaC | AWS CDK (C#) | Infrastructure as code |
 | Postgres client | `Npgsql` NuGet v8.x | C# PostgreSQL driver; batch UPSERT; `UNNEST`-based set operations |
 | ClickHouse client | `ClickHouse.Client` NuGet v7.x | C# ClickHouse ADO.NET driver; HTTP batch INSERT; `RowBinary` format |
+| OTel SDK | `OpenTelemetry` + `OpenTelemetry.Instrumentation.AWSLambda` + `OpenTelemetry.Instrumentation.Http` + `OpenTelemetry.Instrumentation.SqlClient` + `OpenTelemetry.Extensions.Logging` NuGet packages | .NET 8 OTel instrumentation; auto-instruments HTTP clients, DB calls, and Lambda lifecycle; log bridge connects `ILogger` to OTLP |
+| OTel Collector | AWS Distro for OpenTelemetry (ADOT) Lambda Layer + Fargate sidecar | Receives OTLP from application; exports traces → X-Ray, metrics → CloudWatch EMF, logs → CloudWatch Logs |
 | Scheduling | Amazon EventBridge Scheduler | Aggregate Refresh Lambda cron (15 min school / 30 min district / nightly state); WAL Slot Monitoring Lambda every 5 min |
-| Observability | AWS CloudWatch | Metrics: `TRS/API/ClickHouseFallback`, `TRS/API/CircuitBreakerOpen`, `TRS/CDC/SchemaError`, `TRS/CDC/WALSlotSizeMB`, `TRS/Scores/StaleResendDiscarded`, `TRS/RTS/ClickHouseWriteFailure`, `TRS/Ingest/ScoreFileRejected`; Alarms on DLQ depth, circuit breaker open >5min, WAL slot at 80% and 90% cap |
+| Observability | OpenTelemetry (.NET SDK) + AWS Distro for OpenTelemetry (ADOT) + CloudWatch | OTel SDK instruments all Lambdas and Fargate services. ADOT Lambda Layer / Fargate sidecar exports traces → X-Ray, metrics → CloudWatch EMF (`TRS/OTel` namespace), logs → CloudWatch Logs (structured JSON with `TraceId`). Custom metrics: `trs.api.request_duration_ms`, `trs.api.tier_used`, `trs.ingest.upsert_duration_ms`, `trs.cdc.insert_duration_ms`, `trs.cdc.wal_slot_lag_mb`, etc. Alarms on DLQ depth, circuit breaker open >5min, WAL slot at 80%/90% cap. Trace sampling: 5% baseline, 100% on errors/high latency. See §15. |
 
 ---
 
@@ -2136,6 +2332,6 @@ Detailed implementation specifications are maintained separately in the `impleme
 ---
 
 *Document maintained by: Principal Software Architect*
-*Last updated: 2026-03-17*
-*Version: v6*
+*Last updated: 2026-03-18*
+*Version: v7*
 *Supersedes: TRS_Design_Document_v5.md*

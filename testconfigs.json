@@ -1,0 +1,328 @@
+{
+    "testalias_id": "ilearn_ela_cp1",
+    "showStandards": true,
+    "showPerformanceLevels": true,
+    "showScaleScore": true,
+    "showRawScore": false,
+    "showPercentile": false,
+    "showPercentCorrect": false,
+    "showLexile": false,
+    "showQuantile": false,
+    "performanceLevels": [
+        {
+            "level": 0,
+            "label": "Not Tested",
+            "description": "The student has not yet been assessed."
+        },
+        {
+            "level": 1,
+            "label": "Below Proficiency",
+            "description": "The student demonstrates limited understanding and application of the concepts and skills assessed. The student may struggle to complete tasks and may require significant support to improve performance."
+        },
+        {
+            "level": 2,
+            "label": "Approaching Proficiency",
+            "description": "The student demonstrates partial understanding and application of the concepts and skills assessed. The student may require some support to improve performance."
+        },
+        {
+            "level": 3,
+            "label": "Proficient",
+            "description": "The student demonstrates a solid understanding and application of the concepts and skills assessed. The student can complete tasks independently and may require minimal support to improve performance."
+        },
+        {
+            "level": 4,
+            "label": "Exemplary",
+            "description": "The student demonstrates an exceptional understanding and application of the concepts and skills assessed. The student can complete tasks independently and may exceed expectations in performance."
+        }
+    ],
+    "studentSupportPerformanceLevelsDerivedFromPerformanceLevels":[
+        {
+            "level": 1,
+            "label": "Students Who Need Extensive Support",
+            "performanceLevels": [1,2],
+            "description": "The student demonstrates limited understanding and application of the concepts and skills assessed. The student may struggle to complete tasks and may require significant support to improve performance."
+        },
+        {
+            "level": 2,
+            "label": "Students Who Need Some Support",
+            "performanceLevels": [3],
+            "description": "The student demonstrates partial understanding and application of the concepts and skills assessed. The student may require some support to improve performance."
+        },
+        {
+            "level": 3,
+            "label": "Students on track for Proficiency",
+            "performanceLevels": [4],
+            "description": "The student demonstrates an exceptional understanding and application of the concepts and skills assessed. The student can complete tasks independently and may exceed expectations in performance."
+        }
+    ],
+    "scaleScorePldefinitions": [
+        {
+            "minScore": 0,
+            "maxScore": 100,
+            "performanceLevel": 1
+        },
+        {
+            "minScore": 101,
+            "maxScore": 200,
+            "performanceLevel": 2
+        },
+        {
+            "minScore": 201,
+            "maxScore": 300,
+            "performanceLevel": 3
+        },
+        {
+            "minScore": 301,
+            "maxScore": 400,
+            "performanceLevel": 4
+        }
+    ],
+    "scaleScoreAboveProficiencyLevel": 3,
+    "standardsPublication": "CCSS",
+    "components": [
+        {
+            "id": "3.RF.1",
+            "title": "3.RF.1",
+            "type": "standard",
+            "description": "Know and apply grade-level phonics and word analysis skills in decoding words.",
+            "performanceLevels": [
+                {
+                    "level": 1,
+                    "label": "Below Proficiency",
+                    "description": "The student demonstrates limited understanding and application of the concepts and skills assessed. The student may struggle to complete tasks and may require significant support to improve performance.",
+                    "skills": [
+                        "Struggles to apply grade-level phonics and word analysis skills.",
+                        "Has difficulty decoding unfamiliar words, often guessing based on context or pictures.",
+                        "Reads in a halting manner, with frequent pauses and repetitions."
+                    ]
+                },
+                {
+                    "level": 2,
+                    "label": "Approaching Proficiency",
+                    "description": "The student demonstrates partial understanding and application of the concepts and skills assessed. The student may require some support to improve performance.",
+                    "skills": [
+                        "Applies grade-level phonics and word analysis skills with some assistance.",
+                        "Decodes unfamiliar words with occasional assistance.",
+                        "Reads with some fluency, but may pause or hesitate."
+                    ]
+                },
+                {
+                    "level": 3,
+                    "label": "Proficient",
+                    "description": "The student demonstrates a solid understanding and application of the concepts and skills assessed. The student can complete tasks independently and may require minimal support to improve performance.",
+                    "skills": [
+                        "Applies grade-level phonics and word analysis skills accurately.",
+                        "Decodes unfamiliar words with minimal assistance.",
+                        "Reads with fluency and comprehension appropriate for grade level."
+                    ]
+
+                },
+                {
+                    "level": 4,
+                    "label": "Exemplary",
+                    "description": "The student demonstrates an exceptional understanding and application of the concepts and skills assessed. The student can complete tasks independently and may exceed expectations in performance.",
+                    "skills": [
+                        "Applies grade-level phonics and word analysis skills with exceptional accuracy.",
+                        "Decodes unfamiliar words independently and with ease.",
+                        "Reads with advanced fluency and comprehension beyond grade level."
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "3.RF.2",
+            "title": "3.RF.2",
+            "type": "standard",
+            "description": "Read with sufficient accuracy and fluency to support comprehension.",
+            "performanceLevels": [
+                {
+                    "level": 1,
+                    "label": "Below Proficiency",
+                    "description": "The student demonstrates limited understanding and application of the concepts and skills assessed. The student may struggle to complete tasks and may require significant support to improve performance.",
+                    "skills": [
+                        "Reads grade-level text with frequent errors and limited comprehension.",
+                        "Struggles to decode unfamiliar words, often guessing based on context or pictures.",
+                        "Reads in a halting manner, with frequent pauses and repetitions."
+                    ]
+                },
+                {
+                    "level": 2,
+                    "label": "Approaching Proficiency",
+                    "description": "The student demonstrates partial understanding and application of the concepts and skills assessed. The student may require some support to improve performance.",
+                    "skills": [
+                        "Reads grade-level text with some errors and partial comprehension.",
+                        "Decodes unfamiliar words with occasional assistance.",
+                        "Reads with some fluency, but may pause or hesitate."
+                    ]
+                },
+                {
+                    "level": 3,
+                    "label": "Proficient",
+                    "description": "The student demonstrates a solid understanding and application of the concepts and skills assessed. The student can complete tasks independently and may require minimal support to improve performance.",
+                    "skills": [
+                        "Reads grade-level text with accuracy and comprehension.",
+                        "Decodes unfamiliar words independently.",
+                        "Reads with fluency and expression."
+                    ]
+                },
+                {
+                    "level": 4,
+                    "label": "Exemplary",
+                    "description": "The student demonstrates an exceptional understanding and application of the concepts and skills assessed. The student can complete tasks independently and may exceed expectations in performance.",
+                    "skills": [
+                        "Reads grade-level text with exceptional accuracy and comprehension.",
+                        "Decodes unfamiliar words with ease and precision.",
+                        "Reads with advanced fluency and expression."
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "3.RF.3",
+            "title": "3.RF.3",
+            "type": "standard",
+            "description": "Know and apply grade-level phonics and word analysis skills in decoding words.",
+            "performanceLevels": [
+                {
+                    "level": 1,
+                    "label": "Below Proficiency",
+                    "description": "The student demonstrates limited understanding and application of the concepts and skills assessed. The student may struggle to complete tasks and may require significant support to improve performance.",
+                    "skills": [
+                        "Struggles to decode words with common prefixes and suffixes.",
+                        "Has difficulty recognizing and decoding multisyllabic words.",
+                        "Relies heavily on context clues to decode words."
+                    ]
+                },
+                {
+                    "level": 2,
+                    "label": "Approaching Proficiency",
+                    "description": "The student demonstrates partial understanding and application of the concepts and skills assessed. The student may require some support to improve performance.",
+                    "skills": [
+                        "Decodes words with common prefixes and suffixes with some assistance.",
+                        "Recognizes and decodes some multisyllabic words with support.",
+                        "Uses context clues to decode words, but may struggle with accuracy."
+                    ]
+                },
+                {
+                    "level": 3,
+                    "label": "Proficient",
+                    "description": "The student demonstrates a solid understanding and application of the concepts and skills assessed. The student can complete tasks independently and may require minimal support to improve performance.",
+                    "skills": [
+                        "Decodes words with common prefixes and suffixes independently.",
+                        "Recognizes and decodes multisyllabic words with minimal support.",
+                        "Uses context clues effectively to decode words."
+                    ]
+                },
+                {
+                    "level": 4,
+                    "label": "Exemplary",
+                    "description": "The student demonstrates an exceptional understanding and application of the concepts and skills assessed. The student can complete tasks independently and may exceed expectations in performance.",
+                    "skills": [
+                        "Decodes words with common prefixes and suffixes with ease and precision.",
+                        "Recognizes and decodes multisyllabic words independently and accurately.",
+                        "Uses context clues skillfully to decode words, even in complex texts."
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "3.RF.4",
+            "title": "3.RF.4",
+            "type": "standard",
+            "description": "Read with sufficient accuracy and fluency to support comprehension.",
+            "performanceLevels": [
+                {
+                    "level": 1,
+                    "label": "Below Proficiency",
+                    "description": "The student demonstrates limited understanding and application of the concepts and skills assessed. The student may struggle to complete tasks and may require significant support to improve performance.",
+                    "skills": [
+                        "Struggles to read with sufficient accuracy and fluency.",
+                        "Has difficulty comprehending texts independently.",
+                        "Requires significant support to improve reading performance."
+                    ]
+
+                },
+                {
+                    "level": 2,
+                    "label": "Approaching Proficiency",
+                    "description": "The student demonstrates partial understanding and application of the concepts and skills assessed. The student may require some support to improve performance.",
+                    "skills": [
+                        "Reads with some accuracy and fluency, but may struggle with complex texts.",
+                        "Comprehends texts with some support.",
+                        "Requires some support to improve reading performance."
+                    ]
+                },
+                {
+                    "level": 3,
+                    "label": "Proficient",
+                    "description": "The student demonstrates a solid understanding and application of the concepts and skills assessed. The student can complete tasks independently and may require minimal support to improve performance.",
+                    "skills": [
+                        "Reads with sufficient accuracy and fluency to support comprehension.",
+                        "Comprehends texts independently with minimal support.",
+                        "Applies reading strategies effectively to improve performance."
+                    ]
+
+                },
+                {
+                    "level": 4,
+                    "label": "Exemplary",
+                    "description": "The student demonstrates an exceptional understanding and application of the concepts and skills assessed. The student can complete tasks independently and may exceed expectations in performance.",
+                    "skills": [
+                        "Reads with exceptional accuracy and fluency.",
+                        "Comprehends complex texts independently.",
+                        "Applies advanced reading strategies to enhance performance."
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "3.RL.1",
+            "title": "3.RL.1",
+            "type": "standard",
+            "description": "Ask and answer questions to demonstrate understanding of a text, referring explicitly to the text as the basis for the answers.",
+            "performanceLevels": [
+                {
+                    "level": 1,
+                    "label": "Below Proficiency",
+                    "description": "The student demonstrates limited understanding and application of the concepts and skills assessed. The student may struggle to complete tasks and may require significant support to improve performance.",
+                    "skills": [
+                        "Struggles to read with sufficient accuracy and fluency.",
+                        "Has difficulty comprehending texts independently.",
+                        "Requires significant support to improve reading performance."
+                    ]
+
+                },
+                {
+                    "level": 2,
+                    "label": "Approaching Proficiency",
+                    "description": "The student demonstrates partial understanding and application of the concepts and skills assessed. The student may require some support to improve performance.",
+                    "skills": [
+                        "Reads with some accuracy and fluency, but may struggle with complex texts.",
+                        "Comprehends texts with some support.",
+                        "Requires some support to improve reading performance."
+                    ]
+                },
+                {
+                    "level": 3,
+                    "label": "Proficient",
+                    "description": "The student demonstrates a solid understanding and application of the concepts and skills assessed. The student can complete tasks independently and may require minimal support to improve performance.",
+                    "skills": [
+                        "Reads with sufficient accuracy and fluency to support comprehension.",
+                        "Comprehends texts independently with minimal support.",
+                        "Applies reading strategies effectively to improve performance."
+                    ]
+                },
+                {
+                    "level": 4,
+                    "label": "Exemplary",
+                    "description": "The student demonstrates an exceptional understanding and application of the concepts and skills assessed. The student can complete tasks independently and may exceed expectations in performance.",
+                    "skills": [
+                        "Reads with exceptional accuracy and fluency.",
+                        "Comprehends complex texts independently.",
+                        "Applies advanced reading strategies to enhance performance."
+                    ]
+                }
+            ]
+        }
+    ]
+}

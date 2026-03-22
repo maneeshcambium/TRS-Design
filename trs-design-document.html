@@ -1,0 +1,1578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRS Engineering Design Document v7</title>
+    <style>
+        :root {
+            --primary: #1a365d;
+            --primary-light: #2b6cb0;
+            --accent: #3182ce;
+            --accent-light: #ebf8ff;
+            --success: #276749;
+            --success-bg: #f0fff4;
+            --warning: #975a16;
+            --warning-bg: #fffff0;
+            --danger: #9b2c2c;
+            --danger-bg: #fff5f5;
+            --gray-50: #f7fafc;
+            --gray-100: #edf2f7;
+            --gray-200: #e2e8f0;
+            --gray-300: #cbd5e0;
+            --gray-500: #718096;
+            --gray-600: #4a5568;
+            --gray-700: #2d3748;
+            --gray-800: #1a202c;
+            --gray-900: #171923;
+            --border-radius: 8px;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+            --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 15px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: var(--gray-800);
+            line-height: 1.7;
+            background: var(--gray-50);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ── Cover Page ── */
+        .cover {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 50%, var(--accent) 100%);
+            color: white;
+            text-align: center;
+            padding: 4rem 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .cover::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 30% 70%, rgba(255,255,255,0.04) 0%, transparent 50%),
+                        radial-gradient(circle at 70% 30%, rgba(255,255,255,0.06) 0%, transparent 50%);
+            pointer-events: none;
+        }
+        .cover-badge {
+            display: inline-block;
+            padding: 0.4rem 1.2rem;
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 20px;
+            font-size: 0.85rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(4px);
+            background: rgba(255,255,255,0.08);
+        }
+        .cover h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.5rem;
+            position: relative;
+        }
+        .cover .subtitle {
+            font-size: 1.4rem;
+            font-weight: 300;
+            opacity: 0.9;
+            margin-bottom: 3rem;
+        }
+        .cover-meta {
+            display: flex;
+            gap: 3rem;
+            font-size: 0.95rem;
+            opacity: 0.85;
+            position: relative;
+        }
+        .cover-meta div { display: flex; flex-direction: column; gap: 0.2rem; }
+        .cover-meta .label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.7; }
+
+        /* ── Layout ── */
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 3rem 2rem;
+        }
+
+        /* ── Navigation / TOC ── */
+        .toc-section {
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-md);
+            padding: 3rem;
+            margin-bottom: 3rem;
+        }
+        .toc-section h2 {
+            font-size: 1.5rem;
+            color: var(--primary);
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid var(--accent);
+        }
+        .toc-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem 2rem;
+        }
+        .toc-grid a {
+            color: var(--gray-700);
+            text-decoration: none;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .toc-grid a:hover {
+            background: var(--accent-light);
+            color: var(--accent);
+        }
+        .toc-grid .toc-num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 26px;
+            height: 26px;
+            background: var(--gray-100);
+            border-radius: 50%;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--gray-600);
+            flex-shrink: 0;
+        }
+
+        /* ── Sections ── */
+        .section {
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            padding: 2.5rem 3rem;
+            margin-bottom: 2rem;
+        }
+        .section h2 {
+            font-size: 1.75rem;
+            color: var(--primary);
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid var(--gray-200);
+            letter-spacing: -0.01em;
+        }
+        .section h3 {
+            font-size: 1.25rem;
+            color: var(--primary-light);
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+        }
+        .section h4 {
+            font-size: 1.05rem;
+            color: var(--gray-700);
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+        .section p, .section li {
+            color: var(--gray-700);
+            font-size: 0.95rem;
+        }
+        .section p { margin-bottom: 1rem; }
+        .section ul, .section ol {
+            padding-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .section li { margin-bottom: 0.4rem; }
+
+        /* ── Tables ── */
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin: 1.25rem 0;
+            font-size: 0.9rem;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--gray-200);
+        }
+        thead { background: var(--primary); }
+        thead th {
+            color: white;
+            font-weight: 600;
+            text-align: left;
+            padding: 0.75rem 1rem;
+            font-size: 0.85rem;
+            letter-spacing: 0.02em;
+        }
+        tbody tr { transition: background 0.1s; }
+        tbody tr:nth-child(even) { background: var(--gray-50); }
+        tbody tr:hover { background: var(--accent-light); }
+        td {
+            padding: 0.65rem 1rem;
+            border-top: 1px solid var(--gray-200);
+            vertical-align: top;
+        }
+        td:first-child { font-weight: 500; }
+
+        /* ── Code blocks ── */
+        pre {
+            background: var(--gray-900);
+            color: #e2e8f0;
+            padding: 1.25rem 1.5rem;
+            border-radius: var(--border-radius);
+            overflow-x: auto;
+            font-size: 0.82rem;
+            line-height: 1.65;
+            margin: 1rem 0;
+            box-shadow: var(--shadow);
+        }
+        code {
+            font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+            font-size: 0.85em;
+        }
+        :not(pre) > code {
+            background: var(--gray-100);
+            color: var(--accent);
+            padding: 0.15em 0.4em;
+            border-radius: 4px;
+            font-size: 0.88em;
+        }
+
+        /* ── Callout boxes ── */
+        .callout {
+            padding: 1rem 1.25rem;
+            border-radius: var(--border-radius);
+            margin: 1.25rem 0;
+            border-left: 4px solid;
+            font-size: 0.92rem;
+        }
+        .callout-info {
+            background: var(--accent-light);
+            border-color: var(--accent);
+            color: #2a4365;
+        }
+        .callout-success {
+            background: var(--success-bg);
+            border-color: var(--success);
+            color: #22543d;
+        }
+        .callout-warning {
+            background: var(--warning-bg);
+            border-color: #d69e2e;
+            color: #744210;
+        }
+        .callout-danger {
+            background: var(--danger-bg);
+            border-color: #e53e3e;
+            color: #742a2a;
+        }
+        .callout strong { display: block; margin-bottom: 0.3rem; }
+
+        /* ── Diagram boxes ── */
+        .diagram-container {
+            background: var(--gray-900);
+            color: #a0d2db;
+            padding: 1.5rem 2rem;
+            border-radius: var(--border-radius);
+            overflow-x: auto;
+            margin: 1.5rem 0;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.78rem;
+            line-height: 1.55;
+            white-space: pre;
+            box-shadow: var(--shadow-md);
+        }
+
+        /* ── Key Decision Cards ── */
+        .decision-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+        .decision-card {
+            border: 1px solid var(--gray-200);
+            border-radius: var(--border-radius);
+            padding: 1.25rem 1.5rem;
+            transition: all 0.15s;
+        }
+        .decision-card:hover {
+            box-shadow: var(--shadow-md);
+            border-color: var(--accent);
+        }
+        .decision-card .decision-num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            background: var(--primary);
+            color: white;
+            border-radius: 50%;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-right: 0.5rem;
+        }
+        .decision-card .decision-title {
+            font-weight: 600;
+            color: var(--primary);
+            font-size: 0.95rem;
+        }
+        .decision-card .decision-rationale {
+            margin-top: 0.5rem;
+            color: var(--gray-600);
+            font-size: 0.88rem;
+            line-height: 1.6;
+        }
+
+        /* ── Stats / KPI cards ── */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+        .kpi-card {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            padding: 1.25rem 1.5rem;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+        }
+        .kpi-card .kpi-value {
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+        .kpi-card .kpi-label {
+            font-size: 0.82rem;
+            opacity: 0.85;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* ── Flow steps ── */
+        .flow-container {
+            position: relative;
+            padding-left: 2.5rem;
+            margin: 1.5rem 0;
+        }
+        .flow-container::before {
+            content: '';
+            position: absolute;
+            left: 12px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--gray-300);
+        }
+        .flow-step {
+            position: relative;
+            margin-bottom: 1.25rem;
+            padding-left: 1rem;
+        }
+        .flow-step::before {
+            content: '';
+            position: absolute;
+            left: -2.5rem;
+            top: 0.5rem;
+            width: 12px;
+            height: 12px;
+            background: var(--accent);
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: var(--shadow-sm);
+        }
+        .flow-step strong { color: var(--primary); }
+
+        /* ── Tier indicator ── */
+        .tier {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .tier-1 { background: #c6f6d5; color: #22543d; }
+        .tier-2 { background: #bee3f8; color: #2a4365; }
+        .tier-3 { background: #fed7d7; color: #742a2a; }
+
+        /* ── Comparison columns ── */
+        .compare-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+        .compare-col {
+            border: 1px solid var(--gray-200);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+        }
+        .compare-col h4 {
+            margin-top: 0;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--gray-200);
+        }
+        .compare-col.recommended {
+            border-color: var(--accent);
+            background: var(--accent-light);
+        }
+        .compare-col.recommended h4 { border-color: var(--accent); }
+
+        /* ── MVP checklist ── */
+        .checklist { list-style: none; padding-left: 0; }
+        .checklist li {
+            padding: 0.5rem 0;
+            padding-left: 1.75rem;
+            position: relative;
+        }
+        .checklist li::before {
+            content: '\2713';
+            position: absolute;
+            left: 0;
+            color: var(--success);
+            font-weight: 700;
+            font-size: 1.1em;
+        }
+
+        /* ── Print ── */
+        @media print {
+            body { background: white; }
+            .cover { min-height: auto; padding: 3rem 2rem; page-break-after: always; }
+            .section { box-shadow: none; border: 1px solid var(--gray-200); page-break-inside: avoid; }
+            .toc-section { page-break-after: always; }
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+            .cover h1 { font-size: 2.2rem; }
+            .toc-grid { grid-template-columns: 1fr; }
+            .compare-grid { grid-template-columns: 1fr; }
+            .kpi-grid { grid-template-columns: 1fr 1fr; }
+            .container { padding: 1.5rem 1rem; }
+            .section { padding: 1.5rem; }
+            .cover-meta { flex-direction: column; gap: 1rem; }
+        }
+
+        /* ── Scrollbar ── */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--gray-100); }
+        ::-webkit-scrollbar-thumb { background: var(--gray-400); border-radius: 4px; }
+
+        .badge-row {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin: 1rem 0;
+        }
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.7rem;
+            border-radius: 12px;
+            font-size: 0.78rem;
+            font-weight: 600;
+        }
+        .badge-blue { background: #dbeafe; color: #1e40af; }
+        .badge-green { background: #d1fae5; color: #065f46; }
+        .badge-orange { background: #ffedd5; color: #9a3412; }
+        .badge-purple { background: #ede9fe; color: #5b21b6; }
+    </style>
+</head>
+<body>
+
+<!-- ═══════════════ COVER PAGE ═══════════════ -->
+<div class="cover">
+    <div class="cover-badge">Engineering Design Document</div>
+    <h1>Teacher Reporting System</h1>
+    <p class="subtitle">Analytical Reporting Pipeline &mdash; Architecture &amp; Design v7</p>
+    <div class="cover-meta">
+        <div><span class="label">Author</span>Principal Software Engineer</div>
+        <div><span class="label">Date</span>March 18, 2026</div>
+        <div><span class="label">Version</span>v7</div>
+        <div><span class="label">Status</span>Active</div>
+    </div>
+</div>
+
+<!-- ═══════════════ MAIN CONTENT ═══════════════ -->
+<div class="container">
+
+    <!-- ── EXECUTIVE SUMMARY ── -->
+    <div class="section" id="executive-summary">
+        <h2>Executive Summary</h2>
+        <p>The <strong>Teacher Reporting System (TRS)</strong> receives student test scores from an upstream Scoring System and presents aggregated analytical reports to teachers and administrators. It is a <strong>read-heavy analytical system</strong> with infrequent bursts of writes during test windows and heavy aggregations over large student populations (up to <strong>5.5 million students</strong> for Texas).</p>
+
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-value">5.5M</div>
+                <div class="kpi-label">Students (TX scale)</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-value">&lt; 5ms</div>
+                <div class="kpi-label">Cached Response Time</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-value">~$506</div>
+                <div class="kpi-label">Monthly Cost (TX)</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-value">3-Tier</div>
+                <div class="kpi-label">Automatic Fallback</div>
+            </div>
+        </div>
+
+        <div class="callout callout-info">
+            <strong>Core Architectural Principle</strong>
+            Aurora PostgreSQL is the primary source of truth for all data. ClickHouse serves aggregation-only queries via a CDC-driven Medallion Architecture (Bronze &rarr; Silver). Aggregation queries JOIN Silver against current membership mirrors at query time &mdash; there is no pre-aggregated Gold layer. Postgres provides full query fallback at all times &mdash; ClickHouse is optional by design.
+        </div>
+
+        <div class="badge-row">
+            <span class="badge badge-blue">AWS Aurora PostgreSQL</span>
+            <span class="badge badge-green">ClickHouse (Aggregation-Only)</span>
+            <span class="badge badge-orange">PeerDB CDC Pipeline</span>
+            <span class="badge badge-purple">.NET 8 / C#</span>
+        </div>
+    </div>
+
+    <!-- ── TABLE OF CONTENTS ── -->
+    <div class="toc-section" id="toc">
+        <h2>Table of Contents</h2>
+        <div class="toc-grid">
+            <a href="#section-1"><span class="toc-num">1</span> System Overview</a>
+            <a href="#section-2"><span class="toc-num">2</span> Architecture</a>
+            <a href="#section-3"><span class="toc-num">3</span> Infrastructure &amp; Hosting</a>
+            <a href="#section-4"><span class="toc-num">4</span> CDC Pipeline</a>
+            <a href="#section-5"><span class="toc-num">5</span> Data Models &mdash; Inputs &amp; Events</a>
+            <a href="#section-6"><span class="toc-num">6</span> Aurora PostgreSQL Schema</a>
+            <a href="#section-7"><span class="toc-num">7</span> ClickHouse Medallion Architecture</a>
+            <a href="#section-8"><span class="toc-num">8</span> Data Flow</a>
+            <a href="#section-9"><span class="toc-num">9</span> API Fallback Logic</a>
+            <a href="#section-10"><span class="toc-num">10</span> Resilience &amp; Failure Modes</a>
+            <a href="#section-11"><span class="toc-num">11</span> Scale &amp; Capacity</a>
+            <a href="#section-12"><span class="toc-num">12</span> Cost Analysis</a>
+            <a href="#section-13"><span class="toc-num">13</span> Key Engineering Decisions</a>
+            <a href="#section-14"><span class="toc-num">14</span> Operational Prerequisites</a>
+            <a href="#section-15"><span class="toc-num">15</span> Observability (OpenTelemetry)</a>
+            <a href="#section-16"><span class="toc-num">16</span> MVP Scope &amp; Future Enhancements</a>
+            <a href="#section-17"><span class="toc-num">17</span> Tech Stack Reference</a>
+        </div>
+    </div>
+
+    <!-- ═══════════════ SECTION 1: SYSTEM OVERVIEW ═══════════════ -->
+    <div class="section" id="section-1">
+        <h2>1. System Overview</h2>
+
+        <h3>1.1 Purpose</h3>
+        <p>The <strong>Teacher Reporting System (TRS)</strong> receives student test scores from an upstream Scoring System and presents aggregated analytical reports to teachers and administrators. It is a <strong>read-heavy analytical system</strong> with infrequent bursts of writes (during test windows) and heavy aggregations over large student populations (up to 5.5 million students for Texas).</p>
+
+        <h3>1.2 Architectural Philosophy</h3>
+        <table>
+            <thead><tr><th>Decision</th><th>Architecture</th></tr></thead>
+            <tbody>
+                <tr><td>Score storage</td><td>Aurora PostgreSQL &mdash; primary and authoritative store</td></tr>
+                <tr><td>ClickHouse writes</td><td>CDC-only via PeerDB + Sign-Pair Transformer (no direct write from application code)</td></tr>
+                <tr><td>ClickHouse schema</td><td>Medallion: Bronze &rarr; Silver (<code>VersionedCollapsingMergeTree</code> &rarr; <code>AggregatingMergeTree</code>)</td></tr>
+                <tr><td>Rescore in ClickHouse</td><td>Sign-Pair (-1/+1) atomic correction in Bronze; <code>argMaxMerge(latest_score, date_scored)</code> in Silver</td></tr>
+                <tr><td>Score CDC transport</td><td>PeerDB on Fargate &mdash; WAL replication slot; before+after images &rarr; Sign-Pair Transformer</td></tr>
+                <tr><td>Membership CDC transport</td><td>PeerDB on Fargate &mdash; direct CDC from <code>school_student</code> / <code>district_student</code> &rarr; ClickHouse mirrors</td></tr>
+                <tr><td>ClickHouse sizing</td><td>Single <code>r6i.2xlarge</code> (aggregation-only, no replica)</td></tr>
+                <tr><td>Aggregate caching</td><td>Postgres <code>report_cache</code> table (keyed by scope/tenant/year/test)</td></tr>
+                <tr><td>Fallback when CH is down</td><td>Tier 1: Postgres <code>report_cache</code> &rarr; Tier 3: Postgres MV / live</td></tr>
+                <tr><td>Multi-enrollment attribution</td><td>Membership mirror <code>JOIN FINAL</code> at query time</td></tr>
+            </tbody>
+        </table>
+
+        <h3>1.3 Core Inputs</h3>
+        <table>
+            <thead><tr><th>Input</th><th>Description</th><th>Source</th></tr></thead>
+            <tbody>
+                <tr><td>Student test scores</td><td>JSON events per student opportunity</td><td>Upstream Scoring System</td></tr>
+                <tr><td>Roster / school / district</td><td>Hierarchical membership data</td><td>External Relationship System (RTS)</td></tr>
+                <tr><td>Test configuration</td><td>Test family, subject, grade, standards metadata</td><td>Config systems</td></tr>
+            </tbody>
+        </table>
+
+        <h3>1.4 Core Outputs</h3>
+        <table>
+            <thead><tr><th>Report</th><th>Aggregation Level</th><th>Latency Target</th></tr></thead>
+            <tbody>
+                <tr><td>Class (roster) aggregates</td><td>All students in a teacher&rsquo;s roster</td><td>&lt; 1 hour</td></tr>
+                <tr><td>Per-student score list</td><td>Individual student scores within a class</td><td>&lt; 1 hour</td></tr>
+                <tr><td>Standard-level class aggregates</td><td>Per standard, within a class</td><td>&lt; 1 hour</td></tr>
+                <tr><td>School aggregates</td><td>All students in a school</td><td>&lt; 5 minutes (cached)</td></tr>
+                <tr><td>District aggregates</td><td>All students in a district</td><td>&lt; 5 minutes (cached)</td></tr>
+                <tr><td>State aggregates</td><td>All students in a state</td><td>Nightly pre-computed</td></tr>
+            </tbody>
+        </table>
+
+        <h3>1.5 Users &amp; Concurrent Load</h3>
+        <ul>
+            <li><strong>Teachers</strong> &mdash; class-level (roster) reports</li>
+            <li><strong>School / District Administrators</strong> &mdash; school and district aggregate reports</li>
+            <li><strong>MVP target concurrency:</strong> 100 concurrent users per client; 1,000 per client per hour</li>
+        </ul>
+    </div>
+
+    <!-- ═══════════════ SECTION 2: ARCHITECTURE ═══════════════ -->
+    <div class="section" id="section-2">
+        <h2>2. Architecture</h2>
+
+        <h3>2.1 High-Level Architecture Diagram</h3>
+        <div class="diagram-container">
+&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+&#9474;                             TRS &#8212; Architecture v7                              &#9474;
+&#9474;                                                                                    &#9474;
+&#9474;  &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;  &#9484;&#9472;&#9472;&#9472;&#9472;&#9488;  &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;  &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;  &#9474;
+&#9474;  &#9474;  Scoring  &#9474;&#9472;&#9654;&#9474;  S3 &#9474;&#9472;&#9654;&#9474; SQS Score Queue &#9474;&#9472;&#9654;&#9474;  Lambda: Score Processor            &#9474;  &#9474;
+&#9474;  &#9474;  System   &#9474;  &#9474; Raw &#9474;  &#9474;  (+ DLQ)        &#9474;  &#9474;  Writes to Postgres ONLY            &#9474;  &#9474;
+&#9474;  &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;  &#9492;&#9472;&#9472;&#9472;&#9472;&#9496;  &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;  &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;  &#9474;
+&#9474;                                                     &#9474; UPSERT (primary)   &#9474;
+&#9474;  &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;  &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;           &#9474;                    &#9474;
+&#9474;  &#9474; RTS MSSQL &#9474;&#9472;&#9654;&#9474; Lambda: RTS Sync    &#9474;  &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9524;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;  &#9474;
+&#9474;  &#9474; (per-ten &#9474;  &#9474; Membership Sync    &#9474;&#9472;&#9654;&#9474;                                         &#9474;  &#9474;
+&#9474;  &#9474; TX/VA/IL)&#9474;  &#9474; (same code, per-   &#9474;  &#9474;  Aurora PostgreSQL Serverless v2    &#9474;  &#9474;
+&#9474;  &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;  &#9474;  tenant conn str)  &#9474;  &#9474;  PRIMARY STORE &#8212; Source of Truth   &#9474;  &#9474;
+&#9474;                  &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;  &#9474;                                         &#9474;  &#9474;
+&#9474;                                          &#9474;  [configs] tenants, test_aliases,  &#9474;  &#9474;
+&#9474;  &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;          &#9474;           test_keys, embargo       &#9474;  &#9474;
+&#9474;  &#9474; S3 Config Bucket         &#9474;          &#9474;  [scores]  student_opportunities,  &#9474;  &#9474;
+&#9474;  &#9474; s3://trs-config/         &#9474;          &#9474;           report_cache, MVs        &#9474;  &#9474;
+&#9474;  &#9474; (standards, perf levels)  &#9474;          &#9474;  [rts]    school_student,          &#9474;  &#9474;
+&#9474;  &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;          &#9474;           district_student         &#9474;  &#9474;
+&#9474;            &#9474; read by API                &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;  &#9474;
+&#9474;            &#9474; (cached 5m TTL)                 &#9474;                                &#9474;
+&#9474;            &#9660;                          WAL (logical replication slot)          &#9474;
+&#9474;                                                &#9474;                                &#9474;
+&#9474;                                     &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9524;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;               &#9474;
+&#9474;                                     &#9474;  PeerDB Engine       &#9474;               &#9474;
+&#9474;                                     &#9474;  (Fargate 0.25vCPU)  &#9474;               &#9474;
+&#9474;                                     &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;               &#9474;
+&#9474;                                              &#9474;                                &#9474;
+&#9474;                                     &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9524;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;               &#9474;
+&#9474;                                     &#9474; C# Sign-Pair        &#9474;               &#9474;
+&#9474;                                     &#9474; Transformer          &#9474;               &#9474;
+&#9474;                                     &#9474; (Fargate 0.5vCPU)    &#9474;               &#9474;
+&#9474;                                     &#9474; INSERT &#8594; +1          &#9474;               &#9474;
+&#9474;                                     &#9474; UPDATE &#8594; -1 then +1  &#9474;               &#9474;
+&#9474;                                     &#9474; DELETE &#8594; -1 only     &#9474;               &#9474;
+&#9474;                                     &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;               &#9474;
+&#9474;                                              &#9474;                                &#9474;
+&#9474;  &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9524;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;  &#9474;
+&#9474;  &#9474;               ClickHouse Single Node (r6i.2xlarge, 64GB)                 &#9474;  &#9474;
+&#9474;  &#9474;  MEDALLION ARCHITECTURE &#8212; Aggregation Only                              &#9474;  &#9474;
+&#9474;  &#9474;                                                                           &#9474;  &#9474;
+&#9474;  &#9474;  [Bronze]                   [Silver]                                     &#9474;  &#9474;
+&#9474;  &#9474;  student_scores_bronze  &#8594;  student_scores_silver (AggregatingMT)       &#9474;  &#9474;
+&#9474;  &#9474;  VersionedCollapsingMT      student_component_scores_silver              &#9474;  &#9474;
+&#9474;  &#9474;  (raw CDC sign pairs)       membership_school_mirror  (ReplacingMT)      &#9474;  &#9474;
+&#9474;  &#9474;  sign=-1 (undo)             membership_district_mirror (ReplacingMT)     &#9474;  &#9474;
+&#9474;  &#9474;  sign=+1 (redo)             student_attributes (ReplacingMT)             &#9474;  &#9474;
+&#9474;  &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;  &#9474;
+&#9474;                                              &#9474;                                &#9474;
+&#9474;               Aggregate Refresh Lambda (nightly + on-demand)                  &#9474;
+&#9474;               Queries Silver + membership JOIN &#8594; writes to report_cache       &#9474;
+&#9474;                                              &#9474;                                &#9474;
+&#9474;  &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;  &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;  &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9524;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488; &#9474;
+&#9474;  &#9474; CloudFront&#9474;  &#9474; API Gateway    &#9474;  &#9474;  Lambda: API                          &#9474; &#9474;
+&#9474;  &#9474; + React  &#9474;&#9472;&#9654;&#9474; + Lambda Auth  &#9474;&#9472;&#9654;&#9474;  Three-tier fallback:                 &#9474; &#9474;
+&#9474;  &#9474;   SPA    &#9474;  &#9474; (RH SSO JWT)   &#9474;  &#9474;  [1] report_cache          (&lt;5ms)    &#9474; &#9474;
+&#9474;  &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;  &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;  &#9474;  [2] ClickHouse Silver     (&lt;250ms)  &#9474; &#9474;
+&#9474;                                        &#9474;  [3] Postgres MV/live      (fallback)&#9474; &#9474;
+&#9474;                                        &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496; &#9474;
+&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;</div>
+
+        <h3>2.2 Component Responsibilities</h3>
+        <table>
+            <thead><tr><th>Component</th><th>Technology</th><th>Responsibility</th></tr></thead>
+            <tbody>
+                <tr><td>Scoring System</td><td>External</td><td>Produces score JSON files &rarr; S3</td></tr>
+                <tr><td>S3 Raw</td><td>AWS S3</td><td>Landing zone and permanent archive for raw score files</td></tr>
+                <tr><td>SQS Score Queue</td><td>AWS SQS (+ DLQ)</td><td>Decouples Scoring System from Score Processor; buffers bursts</td></tr>
+                <tr><td>Lambda: Score Processor</td><td>.NET 8 / C#</td><td>Downloads S3 files; validates; UPSERTs to Aurora only; <strong>no ClickHouse write</strong></td></tr>
+                <tr><td>Lambda: RTS Sync</td><td>.NET 8 / C#</td><td>Syncs RTS data into Aurora <code>rts</code> schema; per-tenant MSSQL connection</td></tr>
+                <tr><td>S3 Config Bucket</td><td>AWS S3</td><td>Per-test-alias JSON config files; read by API Lambda with in-process caching</td></tr>
+                <tr><td>Aurora PostgreSQL</td><td>Serverless v2</td><td><strong>Primary store for ALL data</strong> &mdash; three schemas: <code>configs</code>, <code>scores</code>, <code>rts</code></td></tr>
+                <tr><td>PeerDB Engine</td><td>Fargate (0.25 vCPU)</td><td>Reads Aurora WAL; two CDC jobs: score tables &rarr; Transformer, membership &rarr; ClickHouse mirrors</td></tr>
+                <tr><td>Sign-Pair Transformer</td><td>Fargate (0.5 vCPU)</td><td>Converts CDC events to -1/+1 Bronze row pairs; batch-inserts via HTTP</td></tr>
+                <tr><td>ClickHouse</td><td>EC2 <code>r6i.2xlarge</code></td><td>Medallion Bronze/Silver; serves school/district aggregates via Silver + membership JOIN</td></tr>
+                <tr><td>Lambda: Aggregate Refresh</td><td>.NET 8 / C#</td><td>Queries ClickHouse Silver + membership JOIN; writes to Postgres <code>report_cache</code></td></tr>
+                <tr><td>Lambda: API</td><td>.NET 8 / C#</td><td>REST API; three-tier fallback; loads test config from S3 with 5-min cache</td></tr>
+                <tr><td>Auth</td><td>Red Hat SSO (OIDC)</td><td>External IdP &mdash; sole source of user identity and roles; JWT with <code>tenant_id</code> and <code>roles</code></td></tr>
+                <tr><td>Observability</td><td>ADOT + OpenTelemetry</td><td>Distributed tracing, structured logging, and metrics across all services</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ═══════════════ SECTION 3: INFRASTRUCTURE ═══════════════ -->
+    <div class="section" id="section-3">
+        <h2>3. Infrastructure &amp; Hosting Decisions</h2>
+
+        <h3>3.1 Why Aurora PostgreSQL is the Primary Store</h3>
+        <table>
+            <thead><tr><th>Reason</th><th>Detail</th></tr></thead>
+            <tbody>
+                <tr><td><strong>Single source of truth</strong></td><td>Eliminates reconciliation problems if ClickHouse diverges or must be rebuilt</td></tr>
+                <tr><td><strong>Resilience</strong></td><td>AWS-managed with built-in HA, automated failover, and Multi-AZ replication</td></tr>
+                <tr><td><strong>Transactional correctness</strong></td><td>Rescores handled with atomic <code>UPSERT ... WHERE EXCLUDED.date_scored &gt; existing</code></td></tr>
+                <tr><td><strong>Fallback capability</strong></td><td>ClickHouse becomes optional. Postgres always holds the complete dataset</td></tr>
+                <tr><td><strong>Operational simplicity</strong></td><td>No need to maintain EC2 ClickHouse Keeper quorum or manual replication</td></tr>
+            </tbody>
+        </table>
+
+        <h3>3.2 Why ClickHouse is Retained (Aggregation-Only)</h3>
+        <table>
+            <thead><tr><th>Reason</th><th>Detail</th></tr></thead>
+            <tbody>
+                <tr><td><strong>Aggregate speed</strong></td><td>For large scopes (50k&ndash;300k students), ClickHouse GROUP BY is 10&ndash;100&times; faster than Postgres</td></tr>
+                <tr><td><strong>Columnar scans</strong></td><td>Score data reads only queried columns; Postgres reads full rows</td></tr>
+                <tr><td><strong>Optional by design</strong></td><td>System degrades gracefully when ClickHouse is unavailable</td></tr>
+                <tr><td><strong>Silver + query-time JOIN</strong></td><td><code>AggregatingMergeTree</code> Silver layer with <code>argMaxMerge</code> provides correct per-student deduplication</td></tr>
+            </tbody>
+        </table>
+
+        <div class="callout callout-success">
+            <strong>Single ClickHouse Instance Justification</strong>
+            Because Postgres is the source of truth, a ClickHouse failure is a <em>reporting performance degradation</em>, not a data loss event. The API fallback handles it automatically and transparently. ClickHouse can be fully rebuilt from Postgres at any time.
+        </div>
+
+        <h3>3.3 Why PeerDB (Not Debezium + MSK)</h3>
+        <div class="compare-grid">
+            <div class="compare-col">
+                <h4>Debezium + MSK</h4>
+                <ul>
+                    <li>Aurora + MSK cluster + Fargate + ClickHouse</li>
+                    <li><strong>~$586/month</strong> (CDC layer)</li>
+                    <li>Kafka 7-day topic retention</li>
+                    <li>High complexity (consumer, schema registry, Connect cluster)</li>
+                </ul>
+            </div>
+            <div class="compare-col recommended">
+                <h4>PeerDB (Chosen)</h4>
+                <ul>
+                    <li>Aurora + Fargate + ClickHouse</li>
+                    <li><strong>~$27/month</strong> (CDC layer)</li>
+                    <li>Postgres WAL replication slot</li>
+                    <li>Low complexity (single Fargate task, no broker)</li>
+                </ul>
+            </div>
+        </div>
+
+        <h3>3.4 Aurora PostgreSQL Sizing</h3>
+        <table>
+            <thead><tr><th>Client Scale</th><th>Students</th><th>Aurora Config</th><th>Notes</th></tr></thead>
+            <tbody>
+                <tr><td>MVP / single client</td><td>&lt; 500k</td><td>Serverless v2 (min 0.5, max 16 ACU)</td><td>Auto-scales; ~$50&ndash;100/mo</td></tr>
+                <tr><td>Small (VA, IN)</td><td>~1.0&ndash;1.3M</td><td>Serverless v2 (min 0.5, max 16 ACU)</td><td>~$80&ndash;150/mo</td></tr>
+                <tr><td>Medium (IL)</td><td>~1.85M</td><td>Serverless v2 (min 2, max 32 ACU) + 1 read replica</td><td>Read replica for report queries</td></tr>
+                <tr><td>Large (TX)</td><td>~5.5M</td><td>Serverless v2 (min 4, max 64 ACU) + 1 read replica</td><td>Read replica handles all report queries</td></tr>
+            </tbody>
+        </table>
+
+        <h3>3.5 ClickHouse EC2 Sizing</h3>
+        <table>
+            <thead><tr><th>Client Scale</th><th>Students</th><th>Instance</th><th>On-Demand/mo</th><th>Reserved/mo</th></tr></thead>
+            <tbody>
+                <tr><td>MVP / Small</td><td>&lt; 1.3M</td><td><code>r6i.xlarge</code> (32 GB)</td><td>~$181</td><td>~$105</td></tr>
+                <tr><td>Medium (IL)</td><td>~1.85M</td><td><code>r6i.xlarge</code> (32 GB)</td><td>~$181</td><td>~$105</td></tr>
+                <tr><td>Large (TX)</td><td>~5.5M</td><td><code>r6i.2xlarge</code> (64 GB)</td><td>~$362</td><td>~$210</td></tr>
+            </tbody>
+        </table>
+
+        <h3>3.6 Backup &amp; Recovery</h3>
+        <table>
+            <thead><tr><th>Component</th><th>Strategy</th></tr></thead>
+            <tbody>
+                <tr><td><strong>Aurora</strong></td><td>Continuous automated backups to S3 (point-in-time recovery). Multi-AZ standby for sub-minute failover.</td></tr>
+                <tr><td><strong>ClickHouse</strong></td><td>Daily S3 snapshot via Lambda cron (optional &mdash; fully rebuildable from Postgres via PeerDB Initial Load)</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ═══════════════ SECTION 4: CDC PIPELINE ═══════════════ -->
+    <div class="section" id="section-4">
+        <h2>4. CDC Pipeline &mdash; PeerDB + Sign-Pair Transformer</h2>
+
+        <h3>4.1 Why the Sign-Pair Transformer is Necessary</h3>
+        <p>ClickHouse <code>VersionedCollapsingMergeTree</code> and <code>AggregatingMergeTree</code> are append-only engines. They cannot handle a simple UPDATE event. A naive stream of only &ldquo;new values&rdquo; leads to <strong>silent double-counting</strong> in school and district aggregates on every rescore.</p>
+
+        <p>The Sign-Pair Transformer solves this by converting the Before/After images from the WAL into two rows:</p>
+
+        <table>
+            <thead><tr><th>Row</th><th>Action</th></tr></thead>
+            <tbody>
+                <tr><td><strong>Undo row</strong></td><td>Old score value, <code>sign = -1</code>, <code>date_scored = T_before</code></td></tr>
+                <tr><td><strong>Redo row</strong></td><td>New score value, <code>sign = +1</code>, <code>date_scored = T_after</code></td></tr>
+            </tbody>
+        </table>
+
+        <div class="callout callout-warning">
+            <strong>Critical Prerequisite</strong>
+            <code>REPLICA IDENTITY FULL</code> must be set on all replicated Aurora tables. Without it, DELETE and UPDATE Before images contain only primary key columns &mdash; making the undo row useless for aggregate subtraction.
+        </div>
+
+        <h3>4.2 Sign-Pair Emission Logic</h3>
+
+        <h4>INSERT Event</h4>
+        <pre><code>Input:  BeforeImage = null, AfterImage = A
+
+Output: One Bronze row:
+  (opp_key=A.OppKey, sign=+1, is_deleted=0, date_scored=A.DateScored, ...A fields)</code></pre>
+
+        <h4>UPDATE Event (Rescore)</h4>
+        <pre><code>Input:  BeforeImage = B (old score), AfterImage = A (new score)
+        Validate: A.DateScored > B.DateScored
+
+Output: Two Bronze rows in a SINGLE HTTP batch INSERT:
+  Row 1 (Undo): (opp_key=B.OppKey, sign=-1, date_scored=B.DateScored, ...B fields)
+  Row 2 (Redo): (opp_key=A.OppKey, sign=+1, date_scored=A.DateScored, ...A fields)</code></pre>
+
+        <div class="callout callout-danger">
+            <strong>Atomicity Requirement</strong>
+            Both rows must be submitted in a single atomic HTTP batch to ClickHouse. Splitting them creates a window where aggregates are temporarily incorrect.
+        </div>
+
+        <h4>DELETE Event</h4>
+        <pre><code>Input:  BeforeImage = B (the row being deleted), AfterImage = null
+
+Output: One Bronze row (Undo only):
+  (opp_key=B.OppKey, sign=-1, is_deleted=1, date_scored=T_now, ...B fields)</code></pre>
+
+        <h3>4.3 CDC Event Type Reference</h3>
+        <table>
+            <thead><tr><th>CDC Event</th><th>Signs Emitted</th><th>Bronze Result</th><th>Silver Result</th><th>Aggregate Query Result</th></tr></thead>
+            <tbody>
+                <tr><td><strong>INSERT</strong></td><td><code>+1</code></td><td>Row added</td><td><code>argMax</code> picks new row</td><td>Score included</td></tr>
+                <tr><td><strong>UPDATE (rescore)</strong></td><td><code>-1</code> then <code>+1</code></td><td>Pair collapses &rarr; net new</td><td><code>argMax</code> picks T_after</td><td>Latest score only; no double-count</td></tr>
+                <tr><td><strong>UPDATE (flag toggle)</strong></td><td><code>-1</code> then <code>+1</code></td><td>Pair collapses &rarr; new flag</td><td><code>argMax</code> picks latest flag</td><td>Opp included/excluded per flag</td></tr>
+                <tr><td><strong>DELETE</strong></td><td><code>-1</code> only</td><td>Collapses original <code>+1</code></td><td><code>is_deleted=1</code> wins</td><td>Score excluded</td></tr>
+                <tr><td><strong>DELETE &rarr; re-INSERT</strong></td><td><code>-1</code> then <code>+1</code></td><td>Net zero then re-added</td><td><code>is_deleted=0</code> wins at T3</td><td>Score re-included</td></tr>
+            </tbody>
+        </table>
+
+        <h3>4.4 Transformer Deployment</h3>
+        <table>
+            <thead><tr><th>Parameter</th><th>Value</th></tr></thead>
+            <tbody>
+                <tr><td>Container image</td><td><code>trs/cdc-transformer:latest</code> (.NET 8 <code>BackgroundService</code>)</td></tr>
+                <tr><td>Fargate task size</td><td>0.5 vCPU / 1 GB RAM</td></tr>
+                <tr><td>Scaling</td><td>Single task (stateless; PeerDB handles ordering and LSN checkpointing)</td></tr>
+                <tr><td>Output</td><td>ClickHouse HTTP interface &mdash; batch <code>INSERT INTO trs.student_scores_bronze FORMAT RowBinary</code></td></tr>
+                <tr><td>Retry on error</td><td>Exponential back-off (1s &rarr; 2s &rarr; 4s &rarr; max 30s); do NOT advance LSN until INSERT succeeds</td></tr>
+                <tr><td>Fatal error (4xx)</td><td>Emit CloudWatch alarm <code>TRS/CDC/SchemaError</code>; human review required</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ═══════════════ SECTION 5: DATA MODELS ═══════════════ -->
+    <div class="section" id="section-5">
+        <h2>5. Data Models &mdash; Inputs &amp; Events</h2>
+
+        <h3>5.1 Test Identification</h3>
+        <table>
+            <thead><tr><th>Field</th><th>Description</th><th>Example</th></tr></thead>
+            <tbody>
+                <tr><td><code>TestKey</code></td><td>Unique identifier for a specific test administration</td><td><code>checkpoint1-ela-grade1-2025</code></td></tr>
+                <tr><td><code>TestAliasId</code></td><td>Composite: <code>{TestFamily}-{Subject}-{Grade}-{Year}-{Attempt}</code></td><td><code>checkpoint1-ela-grade1-2025-attempt1</code></td></tr>
+                <tr><td><code>Subject</code></td><td>Subject area</td><td>ELA, Math, Science</td></tr>
+                <tr><td><code>Grade</code></td><td>Grade level</td><td>Grade1, Grade2</td></tr>
+                <tr><td><code>SchoolYear</code></td><td>Academic year</td><td>2025, 2026</td></tr>
+            </tbody>
+        </table>
+
+        <h3>5.2 Rescore vs. Retest</h3>
+        <table>
+            <thead><tr><th>Event</th><th><code>OppKey</code></th><th>Postgres Behavior</th><th>ClickHouse Behavior</th></tr></thead>
+            <tbody>
+                <tr><td>Original score</td><td><code>uuid-A</code></td><td>INSERT new row</td><td>CDC INSERT: Bronze <code>sign=+1</code>; Silver accumulates</td></tr>
+                <tr><td><strong>Rescore</strong></td><td><code>uuid-A</code></td><td>ON CONFLICT &rarr; UPDATE (T2 wins)</td><td>CDC UPDATE: Bronze <code>-1@T1</code> + <code>+1@T2</code>; Silver <code>argMax</code> picks T2</td></tr>
+                <tr><td><strong>Retest</strong></td><td><code>uuid-B</code> (new)</td><td>INSERT + flag toggle on prior opp(s)</td><td>CDC INSERT + CDC UPDATE(s) for prior opp(s)</td></tr>
+                <tr><td>Duplicate delivery</td><td><code>uuid-A</code></td><td>ON CONFLICT: WHERE fails; no-op</td><td>No Bronze insert (Postgres no-op &rarr; no WAL)</td></tr>
+                <tr><td>Stale resend</td><td><code>uuid-A</code></td><td>ON CONFLICT: WHERE fails; no-op</td><td>No Bronze insert</td></tr>
+            </tbody>
+        </table>
+
+        <h3>5.3 Aggregate Eligibility</h3>
+        <pre><code>is_aggregate_eligible = TRUE  when:
+  OppStatus IN ('scored', 'partially_scored')
+  AND (ConditionCode IS NULL OR ConditionCode IN ('', 'none'))
+
+is_aggregate_eligible = FALSE  when:
+  OppStatus = 'notscored'
+  OR ConditionCode IN ('Invalidated', 'Expired', 'Absent', ...)</code></pre>
+
+        <h3>5.4 Relationship Hierarchy</h3>
+        <pre><code>state &rarr; district &rarr; school &rarr; teacher &rarr; roster &rarr; student</code></pre>
+        <p>TRS uses only <strong>current</strong> relationships (no effective-dated history). Membership data is refreshed from RTS; demographic data is stored in <code>student_attributes</code>.</p>
+    </div>
+
+    <!-- ═══════════════ SECTION 6: AURORA SCHEMA ═══════════════ -->
+    <div class="section" id="section-6">
+        <h2>6. Database Schema &mdash; Aurora PostgreSQL</h2>
+
+        <p>Aurora is the <strong>primary and authoritative store</strong> for all TRS data. Tables are organized into three Postgres <strong>schemas</strong> within a single Aurora database:</p>
+
+        <table>
+            <thead><tr><th>Schema</th><th>Purpose</th><th>Tables</th><th>Written By</th></tr></thead>
+            <tbody>
+                <tr><td><code>configs</code></td><td>Test configuration &amp; embargo metadata</td><td><code>tenants</code>, <code>test_aliases</code>, <code>test_keys</code>, <code>test_alias_groups</code>, <code>embargo_roles</code></td><td>Admin / deployment tooling</td></tr>
+                <tr><td><code>scores</code></td><td>Score data, ingestion log, cache, MVs</td><td><code>student_opportunities</code>, <code>student_component_scores</code>, <code>score_ingest_log</code>, <code>score_ingest_rejections</code>, <code>report_cache</code>, MVs</td><td>Score Processor, Aggregate Refresh</td></tr>
+                <tr><td><code>rts</code></td><td>Membership mirrors from external RTS</td><td><code>school_student</code>, <code>district_student</code>, <code>roster_student</code>, <code>district_school</code>, <code>teacher_roster</code></td><td>RTS Membership Sync Lambda</td></tr>
+            </tbody>
+        </table>
+
+        <div class="callout callout-info">
+            <strong>Why three schemas, not three databases?</strong>
+            Postgres does not support cross-database JOINs. Separate databases would break all materialized views (which JOIN <code>scores.*</code> against <code>rts.*</code>). Schemas give the same logical boundary with zero performance cost.
+        </div>
+
+        <h3>6.1 <code>scores.student_opportunities</code></h3>
+        <p>Two-level composite partitioning: Level 1 = <code>LIST(tenant_id)</code>, Level 2 = <code>LIST(school_year)</code>.</p>
+        <pre><code>CREATE TABLE scores.student_opportunities (
+    tenant_id              TEXT         NOT NULL,   -- L1 partition key
+    school_year            SMALLINT     NOT NULL,   -- L2 partition key
+    opp_key                UUID         NOT NULL,
+    testalias_id           TEXT         NOT NULL,
+    test_key               TEXT         NOT NULL,
+    student_id             INTEGER      NOT NULL,
+    opp_status             TEXT         NOT NULL,
+    date_scored            TIMESTAMPTZ  NOT NULL,   -- version key (ms precision)
+    is_aggregate_eligible  BOOLEAN      NOT NULL DEFAULT FALSE,
+    use_for_aggregation    BOOLEAN      NOT NULL DEFAULT TRUE,
+    use_for_aggregation_set_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    overall_scale_score    REAL,
+    overall_perf_level     SMALLINT,
+    ...
+    PRIMARY KEY (tenant_id, school_year, opp_key)
+) PARTITION BY LIST (tenant_id);</code></pre>
+
+        <h3>6.2 <code>scores.report_cache</code></h3>
+        <p>Replaces DynamoDB from v1. Holds pre-computed aggregates. Written by Aggregate Refresh Lambda; read first by API Lambda (Tier 1).</p>
+        <pre><code>CREATE TABLE scores.report_cache (
+    cache_key    TEXT        PRIMARY KEY,
+    -- e.g. "school#tx#s-789#2026#cp1-g5-ela"
+    payload      JSONB       NOT NULL,
+    computed_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expires_at   TIMESTAMPTZ NOT NULL,
+    computed_by  TEXT        NOT NULL
+    -- 'clickhouse_silver' | 'postgres_mv' | 'postgres_live' | 'nightly_job'
+);</code></pre>
+
+        <h4>Cache TTLs</h4>
+        <table>
+            <thead><tr><th>Scope</th><th>TTL</th><th>Rationale</th></tr></thead>
+            <tbody>
+                <tr><td>Roster</td><td>No cache &mdash; always live</td><td>~30 students; &lt;5 ms in both Postgres and ClickHouse</td></tr>
+                <tr><td>School</td><td>15 minutes</td><td>Fast query; short TTL keeps it fresh during test windows</td></tr>
+                <tr><td>District</td><td>5 minutes</td><td>Balances freshness vs. cost for large districts</td></tr>
+                <tr><td>State</td><td>Until next nightly run</td><td>State aggregates change slowly</td></tr>
+            </tbody>
+        </table>
+
+        <h3>6.3 Postgres Materialized Views (Tier 3 Fallback)</h3>
+        <p>These MVs are the fallback when both <code>report_cache</code> is stale and ClickHouse is unavailable. <code>REFRESH MATERIALIZED VIEW CONCURRENTLY</code> re-reads source data entirely &mdash; correct for rescores.</p>
+        <table>
+            <thead><tr><th>MV</th><th>Frequency</th></tr></thead>
+            <tbody>
+                <tr><td><code>mv_school_overall</code></td><td>Every 15 min during test window; nightly off-window</td></tr>
+                <tr><td><code>mv_district_overall</code></td><td>Every 30 min during test window; nightly off-window</td></tr>
+                <tr><td><code>mv_school_standards_current</code></td><td>Every 15 min during test window; nightly off-window</td></tr>
+            </tbody>
+        </table>
+
+        <h3>6.4 Test Alias Configuration &mdash; S3 JSON</h3>
+        <p>Display-level configuration (standards, performance levels, measures, score bands) is stored as JSON files per <code>testalias_id</code> in S3 rather than in Postgres tables.</p>
+        <pre><code>s3://trs-config/{tenant_id}/{testalias_id}.json</code></pre>
+        <table>
+            <thead><tr><th>Concern</th><th>Detail</th></tr></thead>
+            <tbody>
+                <tr><td>Why not Postgres?</td><td>Static display metadata; never JOINed, never used in aggregation, never flows through CDC</td></tr>
+                <tr><td>Versioning</td><td>S3 object versioning provides free audit trail</td></tr>
+                <tr><td>Schema flexibility</td><td>New fields added without DDL migrations</td></tr>
+                <tr><td>API caching</td><td>In-process <code>ConcurrentDictionary</code> with 5-min TTL</td></tr>
+            </tbody>
+        </table>
+
+        <h3>6.5 Score File Rejection &amp; Replay</h3>
+        <table>
+            <thead><tr><th>Rejection Reason</th><th>Trigger</th></tr></thead>
+            <tbody>
+                <tr><td><code>UNKNOWN_TEST_KEY</code></td><td><code>test_key</code> has no matching row in <code>configs.test_keys</code></td></tr>
+                <tr><td><code>VALIDATION_FAILED</code></td><td>Required fields missing or file is unparseable</td></tr>
+                <tr><td><code>DATA_CONFLICT</code></td><td>Same <code>opp_key</code> + <code>date_scored</code> but different score data</td></tr>
+            </tbody>
+        </table>
+        <p>Rejected files are copied to <code>s3://trs-rejected/</code> and logged in <code>scores.score_ingest_rejections</code> for audit and replay.</p>
+    </div>
+
+    <!-- ═══════════════ SECTION 7: CLICKHOUSE ═══════════════ -->
+    <div class="section" id="section-7">
+        <h2>7. ClickHouse Medallion Architecture</h2>
+
+        <p>ClickHouse mirrors score data from Postgres via CDC and serves fast aggregation queries. It is <strong>not</strong> the source of truth. If ClickHouse is unavailable, Postgres serves all queries.</p>
+
+        <div class="compare-grid">
+            <div class="compare-col">
+                <h4>Bronze Layer</h4>
+                <ul>
+                    <li><code>VersionedCollapsingMergeTree</code></li>
+                    <li>Raw CDC sign-pair stream</li>
+                    <li>-1/+1 rescore events</li>
+                    <li>Never queried directly by API</li>
+                    <li>Feeds Silver via Materialized View</li>
+                </ul>
+            </div>
+            <div class="compare-col">
+                <h4>Silver Layer</h4>
+                <ul>
+                    <li><code>AggregatingMergeTree</code></li>
+                    <li>Deduplicated per-student opportunity state</li>
+                    <li><code>argMaxMerge</code> resolves to latest score</li>
+                    <li>Queried at runtime + membership JOIN</li>
+                    <li>Produces aggregates</li>
+                </ul>
+            </div>
+        </div>
+
+        <h3>7.1 Bronze: <code>student_scores_bronze</code></h3>
+        <pre><code>CREATE TABLE trs.student_scores_bronze (
+    tenant_id, school_year, testalias_id, student_id, opp_key,
+    sign Int8,           -- -1 (undo) or +1 (redo)
+    is_deleted UInt8,    -- 1 on DELETE events
+    date_scored DateTime64(3),
+    overall_scale_score, overall_perf_level, ...
+)
+ENGINE = VersionedCollapsingMergeTree(sign, date_scored)
+PARTITION BY (tenant_id, school_year)
+ORDER BY (tenant_id, school_year, testalias_id, student_id, opp_key, date_scored);</code></pre>
+
+        <h3>7.2 Silver: <code>student_scores_silver</code></h3>
+        <pre><code>CREATE TABLE trs.student_scores_silver (
+    tenant_id, school_year, testalias_id, student_id, opp_key,
+    latest_score        AggregateFunction(argMax, Float32, DateTime64(3)),
+    latest_perf_level   AggregateFunction(argMax, UInt8,   DateTime64(3)),
+    is_eligible         AggregateFunction(argMax, UInt8,   DateTime64(3)),
+    use_for_aggregation AggregateFunction(argMax, UInt8,   DateTime64(3)),
+    is_deleted          AggregateFunction(argMax, UInt8,   DateTime64(3))
+)
+ENGINE = AggregatingMergeTree()
+ORDER BY (tenant_id, school_year, testalias_id, student_id, opp_key);</code></pre>
+
+        <h3>7.3 Membership Mirror Tables</h3>
+        <pre><code>CREATE TABLE trs.membership_school_mirror (
+    tenant_id String, school_id String, student_id Int32,
+    is_deleted UInt8 DEFAULT 0,
+    version Int64 DEFAULT 0   -- _peerdb_version (LSN)
+) ENGINE = ReplacingMergeTree(version, is_deleted)
+PARTITION BY tenant_id
+ORDER BY (tenant_id, school_id, student_id);</code></pre>
+
+        <h3>7.4 Aggregation Query (Silver + Membership JOIN)</h3>
+        <p>There is <strong>no pre-aggregated Gold layer</strong>. Aggregates are computed by querying Silver + membership JOIN at query time:</p>
+        <pre><code>SELECT
+    m.school_id,
+    count(*)                   AS students_tested,
+    avg(s.latest_score)        AS avg_score,
+    countIf(s.perf_level = 1)  AS pl_1,
+    countIf(s.perf_level = 2)  AS pl_2,
+    ...
+FROM (
+    SELECT student_id, opp_key,
+        argMaxMerge(latest_score) AS latest_score,
+        argMaxMerge(latest_perf_level) AS perf_level,
+        argMaxMerge(is_deleted) AS is_deleted,
+        argMaxMerge(is_eligible) AS is_eligible,
+        argMaxMerge(use_for_aggregation) AS use_for_agg
+    FROM trs.student_scores_silver
+    WHERE tenant_id = ? AND school_year = ? AND testalias_id = ?
+    GROUP BY tenant_id, student_id, opp_key
+    HAVING is_deleted = 0 AND is_eligible = 1 AND use_for_agg = 1
+) AS s
+INNER JOIN (
+    SELECT DISTINCT tenant_id, school_id, student_id
+    FROM trs.membership_school_mirror FINAL
+    WHERE tenant_id = ? AND is_deleted = 0
+) AS m ON s.tenant_id = m.tenant_id AND s.student_id = m.student_id
+GROUP BY m.school_id;</code></pre>
+
+        <div class="callout callout-info">
+            <strong>Why Query-Time JOIN is Correct</strong>
+            <ul style="margin-bottom:0;">
+                <li><strong>Multi-enrollment:</strong> JOIN produces N rows per student; each school counts the student once</li>
+                <li><strong>Rescore:</strong> <code>argMaxMerge</code> picks the latest score; no denominator inflation</li>
+                <li><strong>Retest:</strong> <code>HAVING use_for_agg = 1</code> selects one opp per student</li>
+                <li><strong>Transfer:</strong> next run JOINs current membership &mdash; previous school drops the student</li>
+            </ul>
+        </div>
+
+        <h3>7.5 Medallion Layer Summary</h3>
+        <table>
+            <thead><tr><th>Feature</th><th>Bronze</th><th>Silver (Overall)</th><th>Silver (Component)</th></tr></thead>
+            <tbody>
+                <tr><td><strong>Engine</strong></td><td><code>VersionedCollapsingMT</code></td><td><code>AggregatingMT</code></td><td><code>AggregatingMT</code></td></tr>
+                <tr><td><strong>Granularity</strong></td><td>1 row per CDC event</td><td>1 row per student opp</td><td>1 row per student &times; opp &times; component</td></tr>
+                <tr><td><strong>Primary Question</strong></td><td>&ldquo;What changed?&rdquo;</td><td>&ldquo;Latest score per student?&rdquo;</td><td>&ldquo;Latest component score?&rdquo;</td></tr>
+                <tr><td><strong>Rescore Handling</strong></td><td>Signs cancel on merge</td><td><code>argMax</code> keeps highest <code>date_scored</code></td><td><code>argMax</code> keeps highest <code>date_scored</code></td></tr>
+                <tr><td><strong>Retest Handling</strong></td><td>Both opps land</td><td><code>HAVING use_for_aggregation = 1</code></td><td>Inherited via opp_key JOIN</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ═══════════════ SECTION 8: DATA FLOW ═══════════════ -->
+    <div class="section" id="section-8">
+        <h2>8. Data Flow</h2>
+
+        <h3>8.1 Score Ingestion Path</h3>
+        <div class="flow-container">
+            <div class="flow-step"><strong>Scoring System</strong> &mdash; PUT JSON file to S3 Raw (<code>s3://trs-raw/{tenant_id}/scores/...</code>)</div>
+            <div class="flow-step"><strong>S3 Event Notification</strong> &rarr; SQS Score Queue (+ DLQ)</div>
+            <div class="flow-step"><strong>Lambda: Score Processor</strong> (batch trigger: BatchSize=10, MaxBatchingWindow=30s)
+                <ol style="margin-top:0.5rem;">
+                    <li>Download S3 score file</li>
+                    <li>Validate required fields</li>
+                    <li>Idempotency check (<code>score_ingest_log</code>)</li>
+                    <li>Resolve <code>testalias_id</code> from <code>test_keys</code></li>
+                    <li>Compute <code>is_aggregate_eligible</code></li>
+                    <li>UPSERT &rarr; Aurora <code>scores.student_opportunities</code></li>
+                    <li>UPSERT &rarr; Aurora <code>scores.student_component_scores</code></li>
+                    <li>INSERT &rarr; <code>scores.score_ingest_log</code></li>
+                    <li>ACK SQS message only after Aurora commit</li>
+                </ol>
+            </div>
+            <div class="flow-step"><strong>Aurora WAL</strong> (logical replication slot) &mdash; <em>NO direct ClickHouse write</em></div>
+            <div class="flow-step"><strong>PeerDB Engine</strong> (Fargate) &mdash; Before + After row images</div>
+            <div class="flow-step"><strong>C# Sign-Pair Transformer</strong> &mdash; emit -1/+1 pairs &rarr; HTTP batch INSERT to ClickHouse Bronze</div>
+            <div class="flow-step"><strong>ClickHouse Silver MV</strong> fires on Bronze INSERT &rarr; <code>AggregatingMergeTree</code></div>
+        </div>
+
+        <h3>8.2 Aggregate Refresh Path</h3>
+        <div class="flow-container">
+            <div class="flow-step"><strong>EventBridge Cron</strong> &mdash; every 15 min (school), 30 min (district), nightly (state)</div>
+            <div class="flow-step"><strong>Lambda: Aggregate Refresh</strong> &mdash; probe ClickHouse health (200ms timeout)</div>
+            <div class="flow-step"><strong>ClickHouse Available:</strong> Query Silver + membership JOIN &rarr; upsert to <code>report_cache</code></div>
+            <div class="flow-step"><strong>ClickHouse Unavailable:</strong> Refresh Postgres MVs &rarr; query MVs &rarr; upsert to <code>report_cache</code></div>
+            <div class="flow-step"><strong>Always:</strong> Refresh Postgres MVs (keeps Tier 3 fallback current)</div>
+        </div>
+
+        <h3>8.3 Membership Sync Path</h3>
+        <div class="flow-container">
+            <div class="flow-step"><strong>Per-tenant MSSQL RTS</strong> databases (TX, VA, IL &mdash; same schema)</div>
+            <div class="flow-step"><strong>EventBridge fan-out</strong> &mdash; one Lambda invocation per <code>tenant_id</code></div>
+            <div class="flow-step"><strong>Lambda: RTS Membership Sync</strong> &rarr; Aurora <code>rts.*</code> tables + ClickHouse mirrors (best-effort)</div>
+            <div class="flow-step"><strong>PeerDB</strong> mirrors <code>rts.school_student</code> &rarr; <code>membership_school_mirror</code> via CDC</div>
+        </div>
+    </div>
+
+    <!-- ═══════════════ SECTION 9: API FALLBACK ═══════════════ -->
+    <div class="section" id="section-9">
+        <h2>9. API Fallback Logic</h2>
+
+        <h3>9.1 Three-Tier Fallback</h3>
+        <p>An <strong>embargo pre-check</strong> runs before the fallback chain on every request. If the test is embargoed and the caller lacks an embargo role, the API returns <strong>404 Not Found</strong>.</p>
+
+        <div class="flow-container">
+            <div class="flow-step"><strong>Embargo Check</strong> &mdash; Does <code>testalias_id</code> have <code>embargo_until &gt; NOW()</code>? If embargoed and JWT roles don't match <code>embargo_roles</code> &rarr; 404</div>
+            <div class="flow-step"><span class="tier tier-1">Tier 1</span> <strong>Postgres <code>report_cache</code></strong> &mdash; HIT (not expired) &rarr; Return result (~3ms)</div>
+            <div class="flow-step"><span class="tier tier-2">Tier 2</span> <strong>ClickHouse Silver + membership JOIN</strong> &mdash; school &lt;250ms; district &lt;2s &rarr; Write to <code>report_cache</code></div>
+            <div class="flow-step"><span class="tier tier-3">Tier 3a</span> <strong>Postgres MV</strong> &mdash; Query <code>mv_school_overall</code> / <code>mv_district_overall</code></div>
+            <div class="flow-step"><span class="tier tier-3">Tier 3b</span> <strong>Postgres Live Query</strong> &mdash; Raw GROUP BY on <code>student_opportunities</code></div>
+        </div>
+
+        <h3>9.2 Circuit Breaker Pattern</h3>
+        <p>The API Lambda implements an in-process circuit breaker with three states:</p>
+        <table>
+            <thead><tr><th>State</th><th>Behavior</th><th>Transition</th></tr></thead>
+            <tbody>
+                <tr><td><strong>CLOSED</strong></td><td>Normal; Tier 2 queries attempted</td><td>&rarr; OPEN on probe failure</td></tr>
+                <tr><td><strong>OPEN</strong></td><td>Skip Tier 2 entirely; go to Tier 3</td><td>&rarr; HALF_OPEN after 30s TTL</td></tr>
+                <tr><td><strong>HALF_OPEN</strong></td><td>Allow one probe attempt</td><td>&rarr; CLOSED on success; &rarr; OPEN on failure</td></tr>
+            </tbody>
+        </table>
+
+        <h3>9.3 Scope-Specific Routing</h3>
+        <table>
+            <thead><tr><th>Scope</th><th>Tier 1 (Cache)</th><th>Tier 2 (ClickHouse)</th><th>Tier 3 (Postgres)</th><th>TTL</th></tr></thead>
+            <tbody>
+                <tr><td><strong>Roster</strong></td><td>No cache</td><td>Silver per student</td><td>Aurora live query</td><td>N/A</td></tr>
+                <tr><td><strong>School</strong></td><td><code>report_cache</code></td><td>Silver + school mirror JOIN</td><td>MV &rarr; raw live</td><td>15 min</td></tr>
+                <tr><td><strong>District</strong></td><td><code>report_cache</code></td><td>Silver + district mirror JOIN</td><td>MV &rarr; raw live</td><td>5 min</td></tr>
+                <tr><td><strong>State</strong></td><td><code>report_cache</code></td><td>Silver + membership (nightly)</td><td>Very slow</td><td>Nightly</td></tr>
+                <tr><td><strong>School &mdash; components</strong></td><td><code>report_cache</code></td><td>Component Silver + opp JOIN</td><td>MV (current year)</td><td>15 min</td></tr>
+                <tr><td><strong>District &mdash; components</strong></td><td><code>report_cache</code></td><td>Component Silver + opp JOIN</td><td><strong>HTTP 503</strong> if unavailable</td><td>15 min</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ═══════════════ SECTION 10: RESILIENCE ═══════════════ -->
+    <div class="section" id="section-10">
+        <h2>10. Resilience &amp; Failure Modes</h2>
+
+        <table>
+            <thead><tr><th>Failed Component</th><th>User Impact</th><th>Data Loss Risk</th><th>Recovery Mechanism</th><th>Recovery Time</th></tr></thead>
+            <tbody>
+                <tr><td><strong>ClickHouse instance</strong></td><td>None &mdash; API falls back to Postgres</td><td>None &mdash; WAL buffered</td><td>PeerDB LSN replay on restart</td><td>Minutes</td></tr>
+                <tr><td><strong>PeerDB Fargate task</strong></td><td>None &mdash; API falls back</td><td>None &mdash; replication slot holds WAL</td><td>Fargate auto-restart; resume from last LSN</td><td>Minutes</td></tr>
+                <tr><td><strong>Sign-Pair Transformer</strong></td><td>None &mdash; API falls back</td><td>None &mdash; WAL holds</td><td>Fargate auto-restart; retry from SQS</td><td>Minutes</td></tr>
+                <tr><td><strong>Total EC2 + EBS loss</strong></td><td>None &mdash; API falls back</td><td>Temporary aggregate lag</td><td>PeerDB Initial Load snapshot</td><td>30&ndash;90 min (TX)</td></tr>
+                <tr><td><strong>Aurora Postgres</strong></td><td><strong>Full outage</strong> (primary store down)</td><td>Depends on Aurora HA tier</td><td>Aurora Multi-AZ failover</td><td>~30 seconds</td></tr>
+            </tbody>
+        </table>
+
+        <div class="callout callout-success">
+            <strong>Architectural Guarantee</strong>
+            ClickHouse holds no data that cannot be fully reconstructed from Aurora. Its loss is bounded to query performance degradation with automatic API-level mitigation. Aurora Multi-AZ is the only tier where failure causes true user impact.
+        </div>
+    </div>
+
+    <!-- ═══════════════ SECTION 11: SCALE ═══════════════ -->
+    <div class="section" id="section-11">
+        <h2>11. Scale &amp; Capacity</h2>
+
+        <h3>11.1 State-Level Student Volumes</h3>
+        <table>
+            <thead><tr><th>State</th><th>Total Students</th><th>Largest District</th><th>Largest School</th></tr></thead>
+            <tbody>
+                <tr><td>Texas</td><td>5,543,751</td><td>189,934 (Houston ISD)</td><td>6,798 (Allen HS)</td></tr>
+                <tr><td>Virginia</td><td>1,259,958</td><td>179,858 (Fairfax County)</td><td>5,100</td></tr>
+                <tr><td>Illinois</td><td>1,850,074</td><td>321,666 (Chicago PS)</td><td>4,300</td></tr>
+                <tr><td>Indiana</td><td>1,009,888</td><td>31,000 (Indianapolis PS)</td><td>5,400</td></tr>
+            </tbody>
+        </table>
+
+        <h3>11.2 Annual Row Counts (Texas Scale)</h3>
+        <table>
+            <thead><tr><th>Table</th><th>Rows / Year</th><th>Postgres Storage</th><th>ClickHouse Compressed</th></tr></thead>
+            <tbody>
+                <tr><td><code>student_opportunities</code></td><td>~55M</td><td>~22 GB</td><td>~2 GB</td></tr>
+                <tr><td><code>student_component_scores</code></td><td>~1.65B</td><td>~660 GB</td><td>~9&ndash;13 GB</td></tr>
+                <tr><td><code>student_scores_bronze</code></td><td>~55M (+ rescore pairs)</td><td>N/A</td><td>~2.5 GB</td></tr>
+                <tr><td><code>student_scores_silver</code></td><td>~55M</td><td>N/A</td><td>~1.5 GB</td></tr>
+            </tbody>
+        </table>
+
+        <h3>11.3 Query Performance</h3>
+        <table>
+            <thead><tr><th>Query</th><th>Students</th><th>Postgres Latency</th><th>ClickHouse Latency</th></tr></thead>
+            <tbody>
+                <tr><td>Roster aggregate (live)</td><td>30</td><td>&lt; 20 ms</td><td>&mdash;</td></tr>
+                <tr><td>School aggregate (MV)</td><td>N/A</td><td>&lt; 5 ms</td><td>&lt; 250 ms</td></tr>
+                <tr><td>School aggregate (raw)</td><td>6,800</td><td>200&ndash;600 ms</td><td>&lt; 250 ms</td></tr>
+                <tr><td>District aggregate (Houston ISD)</td><td>189,934</td><td>15&ndash;60 s (too slow)</td><td>1&ndash;2 s</td></tr>
+                <tr><td>State aggregate (TX)</td><td>5.5M</td><td>&gt; 60 s (nightly only)</td><td>30&ndash;60 s (nightly)</td></tr>
+            </tbody>
+        </table>
+
+        <h3>11.4 SQS Ingestion Throughput</h3>
+        <ul>
+            <li>Up to <strong>5,500 students / minute</strong> at TX peak</li>
+            <li>BatchSize=10, MaxBatchingWindow=30s &rarr; ~50 concurrent Lambda invocations</li>
+            <li>Postgres batch UPSERT of 10 rows: ~20&ndash;50 ms</li>
+            <li>CDC pipeline lag (PeerDB &rarr; Transformer &rarr; Bronze): ~5&ndash;30 s</li>
+        </ul>
+    </div>
+
+    <!-- ═══════════════ SECTION 12: COST ═══════════════ -->
+    <div class="section" id="section-12">
+        <h2>12. Cost Analysis</h2>
+
+        <h3>12.1 Base Infrastructure (Texas Scale, Monthly)</h3>
+        <table>
+            <thead><tr><th>Service</th><th>Config</th><th>Monthly Cost</th></tr></thead>
+            <tbody>
+                <tr><td>Aurora Serverless v2</td><td>avg 0.5&ndash;1 ACU; ~50 GB storage</td><td>~$53&ndash;96</td></tr>
+                <tr><td>EC2: ClickHouse</td><td><code>r6i.2xlarge</code> (64 GB RAM, 8 vCPU)</td><td>$362</td></tr>
+                <tr><td>EBS: ClickHouse data</td><td>200 GB <code>gp3</code></td><td>$16</td></tr>
+                <tr><td>Lambda (all functions)</td><td>~50M invocations</td><td>$10&ndash;20</td></tr>
+                <tr><td>S3</td><td>~5 TB/year</td><td>$15&ndash;30</td></tr>
+                <tr><td>SQS</td><td>~50M messages</td><td>$3&ndash;5</td></tr>
+                <tr><td>CloudFront + API Gateway</td><td>1,000 concurrent users</td><td>$10&ndash;20</td></tr>
+                <tr><td>CloudWatch + ADOT + X-Ray</td><td>OTel; 5% trace sampling</td><td>$37&ndash;63</td></tr>
+                <tr style="font-weight:700;background:var(--accent-light)"><td>Base Subtotal</td><td></td><td>~$506&ndash;610/month</td></tr>
+            </tbody>
+        </table>
+
+        <h3>12.2 CDC Layer (PeerDB)</h3>
+        <table>
+            <thead><tr><th>Service</th><th>Config</th><th>Monthly Cost</th></tr></thead>
+            <tbody>
+                <tr><td>PeerDB Engine (Fargate)</td><td>0.25 vCPU / 0.5 GB</td><td>~$9</td></tr>
+                <tr><td>Sign-Pair Transformer (Fargate)</td><td>0.5 vCPU / 1 GB</td><td>~$18</td></tr>
+                <tr style="font-weight:700;background:var(--accent-light)"><td>CDC Subtotal</td><td></td><td>~$27/month</td></tr>
+            </tbody>
+        </table>
+
+        <h3>12.3 Total Cost by Scale</h3>
+        <table>
+            <thead><tr><th>Scale</th><th>ClickHouse Node</th><th>On-Demand / Month</th><th>Reserved / Month</th></tr></thead>
+            <tbody>
+                <tr><td>MVP / single client</td><td><code>r6i.xlarge</code> (32 GB)</td><td>~$270&ndash;310</td><td>~$195&ndash;235</td></tr>
+                <tr><td>Virginia (1.26M)</td><td><code>r6i.xlarge</code> (32 GB)</td><td>~$310&ndash;360</td><td>~$238&ndash;288</td></tr>
+                <tr><td>Texas (5.5M)</td><td><code>r6i.2xlarge</code> (64 GB)</td><td>~$506&ndash;594</td><td>~$284&ndash;372</td></tr>
+            </tbody>
+        </table>
+
+        <h3>12.4 Cost Savings vs. Original Architecture</h3>
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-value">~$10K</div>
+                <div class="kpi-label">Annual Savings</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-value">62%</div>
+                <div class="kpi-label">Cost Reduction</div>
+            </div>
+        </div>
+        <table>
+            <thead><tr><th>Architecture</th><th>Monthly Cost (TX scale)</th></tr></thead>
+            <tbody>
+                <tr><td>Original (ClickHouse primary + MSK + replica)</td><td>~$1,345&ndash;$1,385</td></tr>
+                <tr style="font-weight:700;background:var(--success-bg)"><td>This architecture (Postgres primary + PeerDB + single CH)</td><td>~$506&ndash;$594</td></tr>
+                <tr style="font-weight:700"><td>Savings</td><td>~$830&ndash;$870/month</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ═══════════════ SECTION 13: KEY DECISIONS ═══════════════ -->
+    <div class="section" id="section-13">
+        <h2>13. Key Engineering Decisions</h2>
+
+        <div class="decision-grid">
+            <div class="decision-card">
+                <span class="decision-num">1</span>
+                <span class="decision-title">Aurora PostgreSQL as Primary Store</span>
+                <div class="decision-rationale">Single source of truth; AWS-managed HA/failover; transactional UPSERT handles rescores atomically; enables full query fallback without ClickHouse.</div>
+            </div>
+            <div class="decision-card">
+                <span class="decision-num">2</span>
+                <span class="decision-title">Score Processor Writes to Postgres Only; ClickHouse via CDC</span>
+                <div class="decision-rationale">Eliminates dual-write race conditions; ClickHouse state is always derived from Postgres; rescore correctness guaranteed by WAL before/after images.</div>
+            </div>
+            <div class="decision-card">
+                <span class="decision-num">3</span>
+                <span class="decision-title">PeerDB (Not Debezium + MSK) for CDC</span>
+                <div class="decision-rationale">~$27/month vs. ~$586/month for MSK; Postgres WAL replication slot provides durable buffering without a separate broker; simpler operational model.</div>
+            </div>
+            <div class="decision-card">
+                <span class="decision-num">4</span>
+                <span class="decision-title">Sign-Pair Transformer (-1/+1)</span>
+                <div class="decision-rationale">ClickHouse engines are append-only; a naive UPDATE stream permanently double-counts rescored values. The sign-pair pattern solves this atomically.</div>
+            </div>
+            <div class="decision-card">
+                <span class="decision-num">5</span>
+                <span class="decision-title">Medallion Architecture (Bronze &rarr; Silver, No Gold)</span>
+                <div class="decision-rationale">Gold streaming MVs have three correctness defects: membership baked at INSERT time (transfers never reflected), <code>uniqState</code> double-counts on rescore, <code>avgState</code> denominator inflated. Silver + query-time JOIN is correct for all cases.</div>
+            </div>
+            <div class="decision-card">
+                <span class="decision-num">6</span>
+                <span class="decision-title">Postgres <code>report_cache</code> Replaces DynamoDB</span>
+                <div class="decision-rationale">Eliminates a separate cache service; co-located with score data; Aurora Serverless v2 scales automatically; <code>computed_by</code> metadata enables observability.</div>
+            </div>
+            <div class="decision-card">
+                <span class="decision-num">7</span>
+                <span class="decision-title">Three-Tier API Fallback</span>
+                <div class="decision-rationale">Sub-millisecond cache responses when warm; ClickHouse Silver + JOIN as primary real-time path; Postgres MV as always-available fallback.</div>
+            </div>
+            <div class="decision-card">
+                <span class="decision-num">8</span>
+                <span class="decision-title">Single ClickHouse Instance (No Replica)</span>
+                <div class="decision-rationale">ClickHouse is disposable &mdash; fully rebuilt from Postgres via PeerDB Initial Load. A replica is only justified when ClickHouse is the primary store. Saves ~$150&ndash;$362/month.</div>
+            </div>
+            <div class="decision-card">
+                <span class="decision-num">9</span>
+                <span class="decision-title">Membership Mirror JOIN at Query Time</span>
+                <div class="decision-rationale">Baking the membership JOIN at INSERT time permanently misattributes scores for students who transfer. Query-time JOIN against <code>ReplacingMergeTree FINAL</code> always uses current membership.</div>
+            </div>
+            <div class="decision-card">
+                <span class="decision-num">10</span>
+                <span class="decision-title">Test-Alias Config in S3 JSON, Not Postgres</span>
+                <div class="decision-rationale">Standards, performance levels, measures are static display metadata. S3 eliminates schema-migration overhead, provides free versioning, and avoids CDC for read-only config.</div>
+            </div>
+            <div class="decision-card">
+                <span class="decision-num">11</span>
+                <span class="decision-title">OpenTelemetry (ADOT) for Unified Observability</span>
+                <div class="decision-rationale">Vendor-neutral OTel SDK replaces ad-hoc logging. ADOT exports traces (X-Ray), metrics (CloudWatch EMF), and structured logs from a single instrumentation surface. <code>TraceId</code> on every log line enables jump-to-trace.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════ SECTION 14: OPERATIONAL PREREQS ═══════════════ -->
+    <div class="section" id="section-14">
+        <h2>14. Operational Prerequisites</h2>
+
+        <div class="callout callout-danger">
+            <strong>These requirements MUST be enforced before enabling PeerDB replication. Skipping any causes silent data corruption or operational failure.</strong>
+        </div>
+
+        <h3>14.1 REPLICA IDENTITY FULL</h3>
+        <pre><code>ALTER TABLE scores.student_opportunities        REPLICA IDENTITY FULL;
+ALTER TABLE scores.student_component_scores     REPLICA IDENTITY FULL;
+ALTER TABLE rts.school_student                  REPLICA IDENTITY FULL;
+ALTER TABLE rts.district_student                REPLICA IDENTITY FULL;</code></pre>
+
+        <h3>14.2 Millisecond Precision on <code>date_scored</code></h3>
+        <p>Enforce <code>DateTime64(3)</code> everywhere a version key appears. Second-precision timestamps create 1-second tie windows in <code>argMaxState</code> resolution.</p>
+
+        <h3>14.3 WAL Cap Configuration</h3>
+        <pre><code>ALTER SYSTEM SET max_slot_wal_keep_size = '10GB';
+SELECT pg_reload_conf();</code></pre>
+
+        <h3>14.4 ClickHouse Schema Deployment Order</h3>
+        <ol>
+            <li><code>trs.student_scores_bronze</code></li>
+            <li><code>trs.student_scores_silver</code></li>
+            <li><code>trs.student_scores_silver_mv</code></li>
+            <li><code>trs.student_component_scores_bronze</code></li>
+            <li><code>trs.student_component_scores_silver</code></li>
+            <li><code>trs.student_component_scores_silver_mv</code></li>
+            <li><code>trs.membership_school_mirror</code></li>
+            <li><code>trs.membership_district_mirror</code></li>
+            <li><code>trs.student_attributes</code></li>
+            <li><code>trs.student_scope_today</code> (diagnostic only)</li>
+        </ol>
+
+        <h3>14.5 WAL Replication Slot Monitoring</h3>
+        <table>
+            <thead><tr><th>Threshold</th><th>Action</th></tr></thead>
+            <tbody>
+                <tr><td>&gt; 8,192 MB (80%)</td><td>CloudWatch alarm &rarr; SNS &rarr; ops (WARN: investigate PeerDB lag)</td></tr>
+                <tr><td>&gt; 9,216 MB (90%)</td><td>CloudWatch alarm &rarr; SNS &rarr; ops (CRITICAL: imminent slot invalidation)</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ═══════════════ SECTION 15: OBSERVABILITY ═══════════════ -->
+    <div class="section" id="section-15">
+        <h2>15. Observability &mdash; OpenTelemetry</h2>
+
+        <p>All TRS services emit <strong>traces</strong>, <strong>metrics</strong>, and <strong>structured logs</strong> via the OpenTelemetry SDK. Telemetry is collected by ADOT and exported to CloudWatch.</p>
+
+        <h3>15.1 Instrumentation by Component</h3>
+        <table>
+            <thead><tr><th>Component</th><th>Key Spans / Metrics</th></tr></thead>
+            <tbody>
+                <tr><td><strong>Score Processor</strong></td><td><code>ScoreProcessor.HandleBatch</code>; child: S3.Download, Validate, Postgres.Upsert; metrics: batch_size, upsert_duration, rejection_count</td></tr>
+                <tr><td><strong>API Lambda</strong></td><td><code>API.HandleRequest</code>; child: EmbargoCheck, ReportCache.Lookup, ClickHouse.Query, Postgres.MV; span attr: <code>served_from</code></td></tr>
+                <tr><td><strong>RTS Sync</strong></td><td><code>RTSSync.Handle</code>; child: RTS.Fetch, Postgres.Upsert, ClickHouse.MirrorWrite; metrics: sync_duration, rows_synced</td></tr>
+                <tr><td><strong>Aggregate Refresh</strong></td><td><code>AggregateRefresh.Run</code>; child per scope: ClickHouse.SchoolQuery, Postgres.CacheWrite</td></tr>
+                <tr><td><strong>Sign-Pair Transformer</strong></td><td><code>Transformer.ProcessBatch</code>; child: SQS.Receive, SignPair.Emit, ClickHouse.BatchInsert</td></tr>
+            </tbody>
+        </table>
+
+        <h3>15.2 Custom Metrics</h3>
+        <table>
+            <thead><tr><th>Metric</th><th>Type</th><th>Labels</th></tr></thead>
+            <tbody>
+                <tr><td><code>trs.api.request_duration_ms</code></td><td>Histogram</td><td>scope, tier, tenant_id</td></tr>
+                <tr><td><code>trs.api.tier_used</code></td><td>Counter</td><td>tier (cache, clickhouse, postgres_mv, postgres_live)</td></tr>
+                <tr><td><code>trs.api.circuit_breaker_state</code></td><td>Gauge</td><td>state (closed, open, half_open)</td></tr>
+                <tr><td><code>trs.ingest.upsert_duration_ms</code></td><td>Histogram</td><td>tenant_id</td></tr>
+                <tr><td><code>trs.cdc.wal_slot_lag_mb</code></td><td>Gauge</td><td>slot_name</td></tr>
+            </tbody>
+        </table>
+
+        <h3>15.3 Cost Impact</h3>
+        <table>
+            <thead><tr><th>Item</th><th>Monthly Cost</th></tr></thead>
+            <tbody>
+                <tr><td>X-Ray traces (5% sampling in prod)</td><td>~$5&ndash;15</td></tr>
+                <tr><td>CloudWatch Logs (structured JSON)</td><td>~$10&ndash;25</td></tr>
+                <tr><td>CloudWatch Metrics (EMF)</td><td>~$3&ndash;8</td></tr>
+                <tr><td>ADOT Fargate sidecar (2 tasks)</td><td>~$9</td></tr>
+                <tr style="font-weight:700;background:var(--accent-light)"><td>OTel Subtotal</td><td>~$27&ndash;57/month</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ═══════════════ SECTION 16: MVP SCOPE ═══════════════ -->
+    <div class="section" id="section-16">
+        <h2>16. MVP Scope &amp; Future Enhancements</h2>
+
+        <h3>16.1 MVP Scope</h3>
+        <ul class="checklist">
+            <li>Roster-level aggregates (overall, per-student, standard-level)</li>
+            <li>School and district aggregates (overall) via <code>report_cache</code> + Postgres MVs + ClickHouse Silver</li>
+            <li>Rescore handling (Postgres UPSERT + Sign-Pair CDC to ClickHouse)</li>
+            <li>Retest handling &mdash; <code>use_for_aggregation</code> flag</li>
+            <li>School and district component aggregates (standards, RC) via ClickHouse component Silver</li>
+            <li>RTS membership sync (Aurora primary; ClickHouse mirror best-effort)</li>
+            <li>Test configuration management</li>
+            <li>Full API fallback: ClickHouse unavailable &rarr; Postgres serves all queries transparently</li>
+            <li>Postgres <code>report_cache</code> and materialized views</li>
+            <li>PeerDB CDC pipeline feeding ClickHouse Bronze Medallion layer</li>
+            <li>Sign-Pair Transformer for correct rescore propagation</li>
+            <li>ClickHouse Medallion Architecture (Bronze / Silver) with query-time membership JOIN</li>
+            <li>Red Hat SSO authentication; multi-tenant isolation via <code>tenant_id</code> partition</li>
+            <li>API circuit breaker for ClickHouse health</li>
+            <li>WAL replication slot size monitoring alert</li>
+            <li>OpenTelemetry distributed tracing, structured logging, and metrics via ADOT</li>
+        </ul>
+
+        <h3>16.2 Deferred Enhancements</h3>
+        <table>
+            <thead><tr><th>#</th><th>Enhancement</th><th>Notes</th></tr></thead>
+            <tbody>
+                <tr><td>1</td><td>State-level Postgres MV</td><td>Nightly refresh only; too expensive at 5.5M scale</td></tr>
+                <tr><td>2</td><td>Demographic slice reports</td><td><code>student_attributes</code> JOIN already designed</td></tr>
+                <tr><td>3</td><td>RC and Writing Dimension display views</td><td>Stored at ingest; display views deferred</td></tr>
+                <tr><td>4</td><td>ClickHouse rehydration automation</td><td>Auto-detect lag and trigger PeerDB Initial Load</td></tr>
+                <tr><td>5</td><td>Postgres slow-query monitoring</td><td>Detect if district-scope live queries are being triggered</td></tr>
+                <tr><td>6</td><td>Cross-year trend comparisons</td><td>Out of scope</td></tr>
+                <tr><td>7</td><td>Demographics slice aggregates</td><td>Add gender, ethnicity, ell as GROUP BY dimensions</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ═══════════════ SECTION 17: TECH STACK ═══════════════ -->
+    <div class="section" id="section-17">
+        <h2>17. Tech Stack Reference</h2>
+        <table>
+            <thead><tr><th>Layer</th><th>Technology</th><th>Notes</th></tr></thead>
+            <tbody>
+                <tr><td>Language</td><td>C# (.NET 8)</td><td>Lambda functions, API layer, Fargate transformer</td></tr>
+                <tr><td>Primary DB</td><td>Aurora PostgreSQL Serverless v2</td><td>Source of truth &mdash; three schemas: configs, scores, rts</td></tr>
+                <tr><td>Analytical DB</td><td>ClickHouse 24.x</td><td>Single <code>r6i.2xlarge</code>; aggregation-only; Medallion Bronze/Silver</td></tr>
+                <tr><td>CDC</td><td>PeerDB on Fargate</td><td>WAL logical replication; Before/After images; LSN checkpointing</td></tr>
+                <tr><td>CDC Transformer</td><td>C# BackgroundService on Fargate</td><td>Sign-Pair (-1/+1) emission; Bronze HTTP batch INSERT</td></tr>
+                <tr><td>Messaging</td><td>AWS SQS (+ DLQ)</td><td>Score ingestion queue; PeerDB event queue</td></tr>
+                <tr><td>Object storage</td><td>AWS S3</td><td>Raw score files; config; ClickHouse backup</td></tr>
+                <tr><td>Compute</td><td>AWS Lambda + Fargate</td><td>Lambda: Score Processor, RTS Sync, API, Aggregate Refresh; Fargate: PeerDB, Transformer</td></tr>
+                <tr><td>API</td><td>AWS API Gateway (HTTP API)</td><td>REST endpoints</td></tr>
+                <tr><td>Auth</td><td>Red Hat SSO (OIDC)</td><td>RS256 JWT with <code>tenant_id</code> + <code>roles</code>; Lambda authorizer</td></tr>
+                <tr><td>Front-end</td><td>React SPA</td><td>Hosted on CloudFront</td></tr>
+                <tr><td>CDN</td><td>AWS CloudFront</td><td>SPA delivery; static asset caching</td></tr>
+                <tr><td>IaC</td><td>AWS CDK (C#)</td><td>Infrastructure as code</td></tr>
+                <tr><td>Postgres client</td><td>Npgsql v8.x</td><td>Batch UPSERT; UNNEST-based set operations</td></tr>
+                <tr><td>ClickHouse client</td><td>ClickHouse.Client v7.x</td><td>HTTP batch INSERT; RowBinary format</td></tr>
+                <tr><td>Observability</td><td>OpenTelemetry + ADOT + CloudWatch</td><td>Traces &rarr; X-Ray; Metrics &rarr; CloudWatch EMF; Logs &rarr; CloudWatch Logs</td></tr>
+                <tr><td>Scheduling</td><td>Amazon EventBridge Scheduler</td><td>Aggregate Refresh cron; WAL Slot Monitor every 5 min</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ── Footer ── -->
+    <div style="text-align:center; padding: 2rem 0; color: var(--gray-500); font-size: 0.85rem;">
+        <p><strong>Teacher Reporting System</strong> &mdash; Engineering Design Document v7</p>
+        <p>Maintained by: Principal Software Architect &bull; Last updated: March 18, 2026</p>
+    </div>
+
+</div>
+
+</body>
+</html>
